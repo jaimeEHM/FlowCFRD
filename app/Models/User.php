@@ -7,16 +7,36 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable(['name', 'cargo', 'email', 'password', 'google_id', 'avatar'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, TwoFactorAuthenticatable;
+    use HasFactory, HasRoles, Notifiable, TwoFactorAuthenticatable;
+
+    /**
+     * @var list<string>
+     */
+    protected $appends = [
+        'role_slugs',
+    ];
+
+    /**
+     * Slugs de roles Spatie expuestos al front (Inertia).
+     *
+     * @return array<int, string>
+     */
+    public function getRoleSlugsAttribute(): array
+    {
+        return $this->getRoleNames()->values()->all();
+    }
 
     /**
      * Get the attributes that should be cast.
@@ -30,5 +50,50 @@ class User extends Authenticatable
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
         ];
+    }
+
+    public function projectsAsJefe(): HasMany
+    {
+        return $this->hasMany(Project::class, 'jefe_proyecto_id');
+    }
+
+    public function assignedTasks(): HasMany
+    {
+        return $this->hasMany(Task::class, 'assignee_id');
+    }
+
+    public function skills(): BelongsToMany
+    {
+        return $this->belongsToMany(Skill::class)->withPivot('level');
+    }
+
+    /**
+     * Busca usuario por correo o por el mismo local-part en dominios CFRD/UdeC configurados.
+     */
+    public static function findForCfrdEmail(string $email): ?self
+    {
+        $email = strtolower(trim($email));
+        if ($email === '' || ! str_contains($email, '@')) {
+            return null;
+        }
+
+        $local = strstr($email, '@', true);
+        if ($local === false || $local === '') {
+            return null;
+        }
+
+        /** @var list<string> $domains */
+        $domains = config('workflow.cfrd_email_domains', []);
+        if ($domains === []) {
+            $domains = [(string) config('workflow.cfrd_email_domain', 'cfrd.cl')];
+        }
+
+        $candidates = collect($domains)
+            ->map(fn (string $d) => $local.'@'.$d)
+            ->unique()
+            ->values()
+            ->all();
+
+        return static::query()->whereIn('email', $candidates)->first();
     }
 }
