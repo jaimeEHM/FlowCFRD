@@ -1,8 +1,13 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Laravel\Fortify\Features;
+
+uses(RefreshDatabase::class);
 
 test('login screen can be rendered', function () {
     $response = $this->get(route('login'));
@@ -11,11 +16,16 @@ test('login screen can be rendered', function () {
 });
 
 test('users can authenticate using the login screen', function () {
-    $user = User::factory()->create();
+    Config::set('workflow.dev_password_login_email', 'admin@cfrd.cl');
+
+    $user = User::factory()->create([
+        'email' => 'admin@cfrd.cl',
+        'password' => Hash::make('cf753rd/'),
+    ]);
 
     $response = $this->post(route('login.store'), [
         'email' => $user->email,
-        'password' => 'password',
+        'password' => 'cf753rd/',
     ]);
 
     $this->assertAuthenticated();
@@ -25,12 +35,17 @@ test('users can authenticate using the login screen', function () {
 test('users with two factor enabled are redirected to two factor challenge', function () {
     $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
 
+    Config::set('workflow.dev_password_login_email', 'admin@cfrd.cl');
+
     Features::twoFactorAuthentication([
         'confirm' => true,
         'confirmPassword' => true,
     ]);
 
-    $user = User::factory()->create();
+    $user = User::factory()->create([
+        'email' => 'admin@cfrd.cl',
+        'password' => Hash::make('cf753rd/'),
+    ]);
 
     $user->forceFill([
         'two_factor_secret' => encrypt('test-secret'),
@@ -40,7 +55,7 @@ test('users with two factor enabled are redirected to two factor challenge', fun
 
     $response = $this->post(route('login'), [
         'email' => $user->email,
-        'password' => 'password',
+        'password' => 'cf753rd/',
     ]);
 
     $response->assertRedirect(route('two-factor.login'));
@@ -49,10 +64,15 @@ test('users with two factor enabled are redirected to two factor challenge', fun
 });
 
 test('users can not authenticate with invalid password', function () {
-    $user = User::factory()->create();
+    Config::set('workflow.dev_password_login_email', 'admin@cfrd.cl');
+
+    User::factory()->create([
+        'email' => 'admin@cfrd.cl',
+        'password' => Hash::make('cf753rd/'),
+    ]);
 
     $this->post(route('login.store'), [
-        'email' => $user->email,
+        'email' => 'admin@cfrd.cl',
         'password' => 'wrong-password',
     ]);
 
@@ -69,12 +89,17 @@ test('users can logout', function () {
 });
 
 test('users are rate limited', function () {
-    $user = User::factory()->create();
+    Config::set('workflow.dev_password_login_email', 'admin@cfrd.cl');
 
-    RateLimiter::increment(md5('login'.implode('|', [$user->email, '127.0.0.1'])), amount: 5);
+    User::factory()->create([
+        'email' => 'admin@cfrd.cl',
+        'password' => Hash::make('cf753rd/'),
+    ]);
+
+    RateLimiter::increment(md5('login'.implode('|', ['admin@cfrd.cl', '127.0.0.1'])), amount: 5);
 
     $response = $this->post(route('login.store'), [
-        'email' => $user->email,
+        'email' => 'admin@cfrd.cl',
         'password' => 'wrong-password',
     ]);
 
