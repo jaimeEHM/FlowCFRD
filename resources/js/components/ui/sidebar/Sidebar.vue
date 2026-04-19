@@ -42,8 +42,8 @@ const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
       }"
     >
       <SheetHeader class="sr-only">
-        <SheetTitle>Sidebar</SheetTitle>
-        <SheetDescription>Displays the mobile sidebar.</SheetDescription>
+        <SheetTitle>Barra lateral</SheetTitle>
+        <SheetDescription>Panel de navegación en pantallas pequeñas.</SheetDescription>
       </SheetHeader>
       <div class="flex h-full w-full flex-col">
         <slot />
