@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
+import ProyectoWorkspaceTabs from '@/components/workflow/ProyectoWorkspaceTabs.vue';
 import WorkflowSection from '@/components/workflow/WorkflowSection.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { backlogTareas } from '@/routes/coordinacion';
 import { dashboard } from '@/routes';
-import { kanban, minutas } from '@/routes/proyecto';
+import { minutas } from '@/routes/proyecto';
 import { store as postMinuta } from '@/routes/proyecto/minutas';
 
 type Row = {
@@ -21,13 +21,18 @@ type Row = {
 
 type Proj = { id: number; name: string; code: string | null };
 
-defineProps<{
+const props = defineProps<{
     minutes: Row[];
     projects: Proj[];
+    workspace_project: Proj | null;
+    filter_project_id: number | null;
 }>();
 
 const form = useForm({
-    project_id: '' as string | number,
+    project_id:
+        (props.filter_project_id ??
+            props.workspace_project?.id ??
+            '') as string | number,
     title: '',
     body: '',
     held_at: '',
@@ -36,11 +41,6 @@ const form = useForm({
 function submit() {
     form.post(postMinuta.url());
 }
-
-const relatedLinks = [
-    { title: 'Kanban', href: kanban() },
-    { title: 'Backlog', href: backlogTareas() },
-];
 
 defineOptions({
     layout: {
@@ -59,8 +59,14 @@ defineOptions({
         context-label="Jefe de proyecto — ejecución"
         title="Minutas de avance y contingencia"
         description="Registro de reuniones por proyecto."
-        :related-links="relatedLinks"
     >
+        <ProyectoWorkspaceTabs
+            v-if="workspace_project"
+            active="minutas"
+            :project="workspace_project"
+            :projects="projects"
+        />
+
         <div class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
             <div class="space-y-3">
                 <div

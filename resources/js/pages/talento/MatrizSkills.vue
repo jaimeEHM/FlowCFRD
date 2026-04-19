@@ -2,9 +2,8 @@
 import { Head } from '@inertiajs/vue3';
 import WorkflowSection from '@/components/workflow/WorkflowSection.vue';
 import UserAvatarInline from '@/components/workflow/UserAvatarInline.vue';
-import { equiposCarga } from '@/routes/coordinacion';
 import { dashboard } from '@/routes';
-import { mapaRelaciones, matrizSkills } from '@/routes/talento';
+import { matrizSkills } from '@/routes/talento';
 
 type Skill = {
     id: number;
@@ -31,11 +30,6 @@ defineProps<{
     users_with_skills: UserS[];
 }>();
 
-const relatedLinks = [
-    { title: 'Mapa de relaciones', href: mapaRelaciones() },
-    { title: 'Equipos y carga', href: equiposCarga() },
-];
-
 defineOptions({
     layout: {
         breadcrumbs: [
@@ -53,7 +47,6 @@ defineOptions({
         context-label="Talento y mejora continua"
         title="Matriz de competencias (skills)"
         description="Diccionario de skills y niveles declarados por persona (nivel 1–5)."
-        :related-links="relatedLinks"
     >
         <div class="space-y-6">
             <div

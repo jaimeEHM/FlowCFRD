@@ -7,12 +7,12 @@ use App\Http\Controllers\Workflow\ColaboradorUrgentesController;
 use App\Http\Controllers\Workflow\CoordinacionBacklogController;
 use App\Http\Controllers\Workflow\CoordinacionEquiposCargaController;
 use App\Http\Controllers\Workflow\CoordinacionValidacionController;
-use App\Http\Controllers\Workflow\PmoGanttController;
-use App\Http\Controllers\Workflow\PmoIndicadoresController;
+use App\Http\Controllers\Workflow\PmoMacroVisibilityController;
 use App\Http\Controllers\Workflow\PmoProyectosController;
 use App\Http\Controllers\Workflow\PmoTableroMacroController;
 use App\Http\Controllers\Workflow\ProyectoKanbanController;
 use App\Http\Controllers\Workflow\ProyectoMinutasController;
+use App\Http\Controllers\Workflow\ProyectoWorkspaceController;
 use App\Http\Controllers\Workflow\SistemaAuditoriaController;
 use App\Http\Controllers\Workflow\SistemaLrsController;
 use App\Http\Controllers\Workflow\SistemaNotificacionesController;
@@ -30,12 +30,20 @@ Route::middleware('guest')->group(function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
 
-    Route::middleware('role:admin|pmo')->prefix('pmo')->name('pmo.')->group(function () {
+    Route::middleware('role:admin|pmo|coordinador|jefe_proyecto|colaborador')->prefix('pmo')->name('pmo.')->group(function () {
         Route::get('tablero-macro', PmoTableroMacroController::class)->name('tablero-macro');
+        Route::get('indicadores', fn () => redirect()->route('pmo.tablero-macro', ['segment' => 'kpi']))->name('indicadores');
+        Route::get('gantt', fn () => redirect()->route('pmo.tablero-macro', ['segment' => 'gantt']))->name('gantt');
+        Route::get('kanban-macro', fn () => redirect()->route('pmo.tablero-macro', ['segment' => 'kanban']))->name('kanban-macro');
+        Route::get('carga-equipo', fn () => redirect()->route('pmo.tablero-macro', ['segment' => 'carga']))->name('carga-equipo');
+    });
+
+    Route::middleware('role:admin|pmo')->prefix('pmo')->name('pmo.')->group(function () {
+        Route::post('tablero-macro/visibilidad', [PmoMacroVisibilityController::class, 'update'])->name('tablero-macro.visibilidad');
         Route::get('proyectos', [PmoProyectosController::class, 'index'])->name('proyectos');
         Route::post('proyectos', [PmoProyectosController::class, 'store'])->name('proyectos.store');
-        Route::get('indicadores', PmoIndicadoresController::class)->name('indicadores');
-        Route::get('gantt', PmoGanttController::class)->name('gantt');
+        Route::get('proyectos/{project}/acta-constitucion', [PmoProyectosController::class, 'downloadActaConstitucion'])->name('proyectos.acta-constitucion');
+        Route::patch('proyectos/{project}', [PmoProyectosController::class, 'update'])->name('proyectos.update');
     });
 
     Route::middleware('role:admin|coordinador|pmo')->prefix('coordinacion')->name('coordinacion.')->group(function () {
@@ -48,7 +56,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     Route::middleware('role:admin|pmo|coordinador|jefe_proyecto')->prefix('proyecto')->name('proyecto.')->group(function () {
+        Route::get('tabla', [ProyectoWorkspaceController::class, 'tabla'])->name('tabla');
+        Route::get('cronograma', [ProyectoWorkspaceController::class, 'cronograma'])->name('cronograma');
+        Route::get('calendario', [ProyectoWorkspaceController::class, 'calendario'])->name('calendario');
         Route::get('kanban', [ProyectoKanbanController::class, 'index'])->name('kanban');
+        Route::patch('kanban/orden', [ProyectoKanbanController::class, 'syncKanban'])->name('kanban.sync');
+        Route::post('task-groups', [ProyectoKanbanController::class, 'storeTaskGroup'])->name('task-groups.store');
+        Route::post('tareas', [ProyectoKanbanController::class, 'storeTask'])->name('tareas.store');
         Route::patch('tareas/{task}', [ProyectoKanbanController::class, 'updateTask'])->name('tareas.update');
         Route::get('minutas', [ProyectoMinutasController::class, 'index'])->name('minutas');
         Route::post('minutas', [ProyectoMinutasController::class, 'store'])->name('minutas.store');

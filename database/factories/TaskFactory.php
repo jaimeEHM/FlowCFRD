@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\TaskGroup;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -30,6 +31,19 @@ class TaskFactory extends Factory
             'due_date' => fake()->optional(0.6)->dateTimeBetween('now', '+3 months'),
             'created_by_id' => User::factory(),
             'validation_status' => null,
+            'task_group_id' => null,
+            'kanban_order' => 0,
         ];
+    }
+
+    public function configure(): static
+    {
+        return $this->afterCreating(function (Task $task): void {
+            if ($task->task_group_id !== null) {
+                return;
+            }
+            $group = TaskGroup::ensureGeneral($task->project);
+            $task->update(['task_group_id' => $group->id]);
+        });
     }
 }

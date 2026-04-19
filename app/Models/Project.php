@@ -36,12 +36,15 @@ class Project extends Model
         'name',
         'code',
         'description',
+        'acta_constitucion_path',
+        'acta_constitucion_original_name',
         'carta_inicio_at',
         'starts_at',
         'ends_at',
         'status',
         'jefe_proyecto_id',
         'created_by_id',
+        'completion_notified_at',
     ];
 
     /**
@@ -53,6 +56,7 @@ class Project extends Model
             'carta_inicio_at' => 'date',
             'starts_at' => 'date',
             'ends_at' => 'date',
+            'completion_notified_at' => 'datetime',
         ];
     }
 
@@ -69,6 +73,11 @@ class Project extends Model
     public function tasks(): HasMany
     {
         return $this->hasMany(Task::class);
+    }
+
+    public function taskGroups(): HasMany
+    {
+        return $this->hasMany(TaskGroup::class)->orderBy('position');
     }
 
     public function minutes(): HasMany
@@ -102,6 +111,25 @@ class Project extends Model
 
         if ($user->hasRole('jefe_proyecto')) {
             return (int) $project->jefe_proyecto_id === (int) $user->id;
+        }
+
+        return false;
+    }
+
+    /**
+     * Acceso API: gestión PMO/jefe o colaborador asignado a alguna tarea del proyecto.
+     */
+    public static function userMayAccessIncludingColaborador(User $user, self $project): bool
+    {
+        if (self::userMayAccess($user, $project)) {
+            return true;
+        }
+
+        if ($user->hasRole('colaborador')) {
+            return Task::query()
+                ->where('project_id', $project->id)
+                ->where('assignee_id', $user->id)
+                ->exists();
         }
 
         return false;

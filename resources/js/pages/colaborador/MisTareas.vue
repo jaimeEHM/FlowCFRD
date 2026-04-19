@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
 import WorkflowSection from '@/components/workflow/WorkflowSection.vue';
-import { backlogTareas } from '@/routes/coordinacion';
-import { misTareas, urgentes } from '@/routes/colaborador';
-import { kanban } from '@/routes/proyecto';
+import { misTareas } from '@/routes/colaborador';
 import { dashboard } from '@/routes';
 
 type Task = {
@@ -18,12 +16,6 @@ type Task = {
 defineProps<{
     tasks: Task[];
 }>();
-
-const relatedLinks = [
-    { title: 'Urgentes', href: urgentes() },
-    { title: 'Kanban', href: kanban() },
-    { title: 'Backlog', href: backlogTareas() },
-];
 
 defineOptions({
     layout: {
@@ -42,7 +34,6 @@ defineOptions({
         context-label="Colaborador — trabajo diario (web)"
         title="Mis tareas"
         description="Tareas donde figuras como responsable."
-        :related-links="relatedLinks"
     >
         <div
             class="overflow-x-auto rounded-lg border border-[#003366]/15 bg-white shadow-sm"

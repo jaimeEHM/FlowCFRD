@@ -3,13 +3,8 @@ import { Head, router } from '@inertiajs/vue3';
 import WorkflowSection from '@/components/workflow/WorkflowSection.vue';
 import UserAvatarInline from '@/components/workflow/UserAvatarInline.vue';
 import { Button } from '@/components/ui/button';
-import { indicadores } from '@/routes/pmo';
 import { dashboard } from '@/routes';
-import {
-    backlogTareas,
-    equiposCarga,
-    validacionAvances,
-} from '@/routes/coordinacion';
+import { validacionAvances } from '@/routes/coordinacion';
 import { update as patchTaskVal } from '@/routes/coordinacion/validacion-avances/tareas';
 import { update as patchSkillVal } from '@/routes/coordinacion/validacion-avances/skills';
 
@@ -41,12 +36,6 @@ function resolveSkill(id: number, status: 'aprobada' | 'rechazada') {
     router.patch(patchSkillVal.url(id), { status });
 }
 
-const relatedLinks = [
-    { title: 'Backlog', href: backlogTareas() },
-    { title: 'Equipos y carga', href: equiposCarga() },
-    { title: 'Indicadores (KPI)', href: indicadores() },
-];
-
 defineOptions({
     layout: {
         breadcrumbs: [
@@ -64,7 +53,6 @@ defineOptions({
         context-label="Coordinación — personas y backlog"
         title="Validación de avances"
         description="Tareas urgentes pendientes y validaciones 360° de skills."
-        :related-links="relatedLinks"
     >
         <div class="space-y-8">
             <div>

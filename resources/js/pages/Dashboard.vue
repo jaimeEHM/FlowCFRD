@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { computed } from 'vue';
-import { LayoutGrid, Sparkles } from 'lucide-vue-next';
+import { computed, onMounted, ref } from 'vue';
+import { Bell, LayoutGrid, Sparkles } from 'lucide-vue-next';
 import { getWorkflowNavGroupsForUser } from '@/config/workflowNavigation';
+import { getRecentProjects, type RecentProject } from '@/lib/recentProjects';
 import { dashboard } from '@/routes';
+import { kanban } from '@/routes/proyecto';
+import { notificaciones } from '@/routes/sistema';
 
 type Metric = {
     key: string;
@@ -30,12 +33,23 @@ type DashboardBlock = {
     extra?: { projects_by_status: Record<string, number> };
 };
 
+type NotificationFeedRow = {
+    id: string;
+    title: string;
+    body: string;
+    kind: string | null;
+    created_at: string | null;
+    read_at: string | null;
+    href: string;
+};
+
 const props = defineProps<{
     greeting: {
         title: string;
         subtitle: string;
     };
     blocks: DashboardBlock[];
+    notification_feed: NotificationFeedRow[];
 }>();
 
 const page = usePage();
@@ -46,6 +60,28 @@ const roleSlugs = computed(
 const navGroups = computed(() =>
     getWorkflowNavGroupsForUser(roleSlugs.value),
 );
+
+const recentProjects = ref<RecentProject[]>([]);
+
+onMounted(() => {
+    recentProjects.value = getRecentProjects();
+});
+
+function formatFeedDate(iso: string | null): string {
+    if (!iso) {
+        return '';
+    }
+    try {
+        return new Date(iso).toLocaleString('es-ES', {
+            day: '2-digit',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    } catch {
+        return iso;
+    }
+}
 
 function metricCardClass(tone: Metric['tone']): string {
     const base =
@@ -115,6 +151,117 @@ defineOptions({
                 <span class="text-[#003366]">{{ roleSlugs.join(' · ') }}</span>
             </p>
         </header>
+
+        <div
+            class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)]"
+        >
+            <section
+                class="overflow-hidden rounded-xl border border-[#003366]/12 bg-white shadow-sm"
+            >
+                <div
+                    class="flex items-center justify-between border-b border-[#003366]/10 bg-[#f8fafc] px-4 py-2"
+                >
+                    <h2
+                        class="text-[11px] font-semibold uppercase tracking-wide text-[#666]"
+                    >
+                        Visitado recientemente
+                    </h2>
+                    <span class="text-[10px] text-[#999]">En este navegador</span>
+                </div>
+                <ul
+                    v-if="recentProjects.length"
+                    class="divide-y divide-[#003366]/8 p-2"
+                >
+                    <li v-for="p in recentProjects" :key="p.id">
+                        <Link
+                            :href="
+                                kanban.url({
+                                    query: { project_id: p.id },
+                                })
+                            "
+                            class="flex flex-col rounded-md px-2 py-2 text-sm transition hover:bg-[#f8fafc]"
+                        >
+                            <span class="font-medium text-[#003366]">{{
+                                p.name
+                            }}</span>
+                            <span
+                                v-if="p.code"
+                                class="text-xs text-[#666]"
+                                >{{ p.code }}</span
+                            >
+                        </Link>
+                    </li>
+                </ul>
+                <p v-else class="px-4 py-6 text-sm text-[#666]">
+                    Abre un proyecto desde Kanban, Tabla u otra vista: se
+                    guardará aquí para acceso rápido.
+                </p>
+            </section>
+
+            <section
+                class="overflow-hidden rounded-xl border border-[#003366]/12 bg-white shadow-sm"
+            >
+                <div
+                    class="flex items-center justify-between border-b border-[#003366]/10 bg-[#f8fafc] px-4 py-2"
+                >
+                    <div class="flex items-center gap-2">
+                        <Bell
+                            class="h-4 w-4 text-[#003366]"
+                            aria-hidden="true"
+                        />
+                        <h2
+                            class="text-[11px] font-semibold uppercase tracking-wide text-[#666]"
+                        >
+                            Buzón de actividad
+                        </h2>
+                    </div>
+                    <Link
+                        :href="notificaciones()"
+                        class="text-[11px] font-medium text-[#003366] hover:underline"
+                    >
+                        Ver todo
+                    </Link>
+                </div>
+                <ul
+                    v-if="props.notification_feed.length"
+                    class="divide-y divide-[#003366]/8"
+                >
+                    <li
+                        v-for="n in props.notification_feed"
+                        :key="n.id"
+                        :class="{ 'opacity-70': n.read_at }"
+                    >
+                        <Link
+                            :href="n.href"
+                            class="block px-4 py-3 text-sm transition hover:bg-[#f8fafc]"
+                        >
+                            <p class="text-[10px] text-[#888]">
+                                {{ formatFeedDate(n.created_at) }}
+                            </p>
+                            <p
+                                v-if="n.kind"
+                                class="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-[#003366]/80"
+                            >
+                                {{ n.kind }}
+                            </p>
+                            <p class="mt-1 font-medium text-[#333]">
+                                {{ n.title }}
+                            </p>
+                            <p
+                                v-if="n.body"
+                                class="line-clamp-2 text-xs text-[#666]"
+                            >
+                                {{ n.body }}
+                            </p>
+                        </Link>
+                    </li>
+                </ul>
+                <p v-else class="px-4 py-6 text-sm text-[#666]">
+                    Sin avisos recientes. Las notificaciones de tareas y
+                    proyectos aparecerán aquí.
+                </p>
+            </section>
+        </div>
 
         <section
             v-for="block in props.blocks"

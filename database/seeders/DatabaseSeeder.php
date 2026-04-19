@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             CfrdDevUserSeeder::class,
             WorkflowDomainSeeder::class,
+            AdminCfrdDemoTasksSeeder::class,
         ]);
     }
 }

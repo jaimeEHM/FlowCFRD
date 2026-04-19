@@ -8,13 +8,14 @@ beforeEach(function () {
     $this->seed(RoleSeeder::class);
 });
 
-test('colaborador no puede acceder a rutas PMO', function () {
+test('colaborador no puede acceder a cartera PMO pero sí al tablero macro', function () {
     $user = User::factory()->create();
     $user->assignRole('colaborador');
     $this->actingAs($user);
 
     $this->get(route('pmo.proyectos'))->assertForbidden();
-    $this->get(route('pmo.indicadores'))->assertForbidden();
+    $this->get(route('pmo.tablero-macro'))->assertOk();
+    $this->get(route('pmo.indicadores'))->assertRedirect(route('pmo.tablero-macro', ['segment' => 'kpi']));
 });
 
 test('colaborador no puede acceder a coordinación ni proyecto kanban', function () {
@@ -26,12 +27,13 @@ test('colaborador no puede acceder a coordinación ni proyecto kanban', function
     $this->get(route('proyecto.kanban'))->assertForbidden();
 });
 
-test('jefe de proyecto no accede a PMO ni colaborador sin rol', function () {
+test('jefe de proyecto accede al tablero macro pero no a cartera PMO ni colaborador sin rol', function () {
     $user = User::factory()->create();
     $user->assignRole('jefe_proyecto');
     $this->actingAs($user);
 
     $this->get(route('pmo.proyectos'))->assertForbidden();
+    $this->get(route('pmo.tablero-macro'))->assertOk();
     $this->get(route('colaborador.mis-tareas'))->assertForbidden();
 });
 

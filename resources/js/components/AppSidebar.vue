@@ -3,6 +3,7 @@ import { Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavFooter from '@/components/NavFooter.vue';
+import PmoMacroSidebarProjects from '@/components/workflow/PmoMacroSidebarProjects.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
 import {
@@ -50,6 +51,7 @@ const footerNavItems: NavItem[] = [];
                 :group-label="group.label"
                 :items="group.items"
             />
+            <PmoMacroSidebarProjects />
         </SidebarContent>
 
         <SidebarFooter>

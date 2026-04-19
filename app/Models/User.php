@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable(['name', 'cargo', 'email', 'password', 'google_id', 'avatar'])]
@@ -19,7 +20,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, Notifiable, TwoFactorAuthenticatable;
+    use HasApiTokens, HasFactory, HasRoles, Notifiable, TwoFactorAuthenticatable;
 
     /**
      * @var list<string>
@@ -60,6 +61,16 @@ class User extends Authenticatable
     public function assignedTasks(): HasMany
     {
         return $this->hasMany(Task::class, 'assignee_id');
+    }
+
+    /**
+     * Tareas donde participa como colaborador adicional (no responsable principal).
+     *
+     * @return BelongsToMany<Task, self>
+     */
+    public function tasksAsCollaborator(): BelongsToMany
+    {
+        return $this->belongsToMany(Task::class, 'task_collaborators')->withTimestamps();
     }
 
     public function skills(): BelongsToMany

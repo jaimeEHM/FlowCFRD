@@ -7,6 +7,7 @@ use App\Models\ProjectMinute;
 use App\Models\Skill;
 use App\Models\SkillValidation;
 use App\Models\Task;
+use App\Models\TaskGroup;
 use App\Models\User;
 use Database\Seeders\Support\CfrdEquipoConfig;
 use Database\Seeders\Support\CfrdProyectosWebConfig;
@@ -111,10 +112,20 @@ class WorkflowDomainSeeder extends Seeder
                 $primerProyecto = $project;
             }
 
+            $groupGeneral = TaskGroup::ensureGeneral($project);
+            $groupExtra = TaskGroup::query()->create([
+                'project_id' => $project->id,
+                'name' => 'Línea transversal',
+                'color' => '#F1C400',
+                'position' => 1,
+            ]);
+
             $tareas = $def['tareas'] ?? [];
             if (! is_array($tareas)) {
                 continue;
             }
+
+            $ti = 0;
 
             foreach ($tareas as $t) {
                 if (! is_array($t)) {
@@ -139,13 +150,23 @@ class WorkflowDomainSeeder extends Seeder
                     continue;
                 }
 
+                $useGroup = ($ti % 3 === 1) ? $groupExtra : $groupGeneral;
+                $ti++;
+
+                $kOrder = (int) Task::query()
+                    ->where('task_group_id', $useGroup->id)
+                    ->where('status', $taskStatus)
+                    ->max('kanban_order');
+
                 Task::query()->create([
                     'project_id' => $project->id,
+                    'task_group_id' => $useGroup->id,
                     'title' => $title,
                     'description' => null,
                     'status' => $taskStatus,
                     'is_urgent' => $isUrgent,
                     'backlog_order' => $backlogOrder,
+                    'kanban_order' => $kOrder + 1,
                     'assignee_id' => $assignee->id,
                     'due_date' => now()->addWeeks(2 + ($offset % 3)),
                     'created_by_id' => $pmo->id,

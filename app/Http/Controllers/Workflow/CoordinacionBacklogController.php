@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Workflow;
 use App\Http\Controllers\Controller;
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\TaskGroup;
 use App\Services\AuditLogger;
+use App\Support\WorkflowRealtime;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -47,9 +49,21 @@ class CoordinacionBacklogController extends Controller
             $validated['validation_status'] = Task::VALIDATION_PENDIENTE;
         }
 
+        $project = Project::query()->findOrFail($validated['project_id']);
+        $group = TaskGroup::ensureGeneral($project);
+        $validated['task_group_id'] = $group->id;
+        $maxOrder = (int) Task::query()
+            ->where('task_group_id', $group->id)
+            ->where('status', Task::STATUS_BACKLOG)
+            ->max('kanban_order');
+        $validated['kanban_order'] = $maxOrder + 1;
+
         $task = Task::query()->create($validated);
 
         $auditLogger->log('task.created', $task, ['title' => $task->title]);
+
+        $task->refresh();
+        WorkflowRealtime::task($task, 'created');
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Tarea añadida al backlog.']);
 

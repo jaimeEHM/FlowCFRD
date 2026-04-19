@@ -6,6 +6,7 @@ use Database\Factories\TaskFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Task extends Model
 {
@@ -41,11 +42,13 @@ class Task extends Model
 
     protected $fillable = [
         'project_id',
+        'task_group_id',
         'title',
         'description',
         'status',
         'is_urgent',
         'backlog_order',
+        'kanban_order',
         'assignee_id',
         'due_date',
         'created_by_id',
@@ -68,6 +71,11 @@ class Task extends Model
         return $this->belongsTo(Project::class);
     }
 
+    public function taskGroup(): BelongsTo
+    {
+        return $this->belongsTo(TaskGroup::class);
+    }
+
     public function assignee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assignee_id');
@@ -76,5 +84,17 @@ class Task extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by_id');
+    }
+
+    /**
+     * Colaboradores adicionales (el responsable principal sigue siendo assignee_id).
+     *
+     * @return BelongsToMany<User, self>
+     */
+    public function collaborators(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'task_collaborators')
+            ->withTimestamps()
+            ->select('users.*');
     }
 }

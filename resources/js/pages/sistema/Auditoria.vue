@@ -2,7 +2,7 @@
 import { Head } from '@inertiajs/vue3';
 import WorkflowSection from '@/components/workflow/WorkflowSection.vue';
 import { dashboard } from '@/routes';
-import { auditoria, lrs, notificaciones } from '@/routes/sistema';
+import { auditoria } from '@/routes/sistema';
 
 type Log = {
     id: number;
@@ -18,11 +18,6 @@ type Log = {
 defineProps<{
     logs: Log[];
 }>();
-
-const relatedLinks = [
-    { title: 'Notificaciones', href: notificaciones() },
-    { title: 'LRS / integración', href: lrs() },
-];
 
 defineOptions({
     layout: {
@@ -41,7 +36,6 @@ defineOptions({
         context-label="Sistema y cumplimiento"
         title="Auditoría y trazabilidad"
         description="Últimos eventos registrados (creación de proyectos, cambios de estado, etc.)."
-        :related-links="relatedLinks"
     >
         <div
             class="overflow-x-auto rounded-lg border border-[#003366]/15 bg-white shadow-sm"

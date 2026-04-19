@@ -2,13 +2,8 @@
 import { Head } from '@inertiajs/vue3';
 import WorkflowSection from '@/components/workflow/WorkflowSection.vue';
 import UserAvatarInline from '@/components/workflow/UserAvatarInline.vue';
-import { misTareas } from '@/routes/colaborador';
 import { dashboard } from '@/routes';
-import {
-    backlogTareas,
-    equiposCarga,
-    validacionAvances,
-} from '@/routes/coordinacion';
+import { equiposCarga } from '@/routes/coordinacion';
 
 type Row = {
     id: number;
@@ -27,12 +22,6 @@ defineProps<{
     users: Row[];
 }>();
 
-const relatedLinks = [
-    { title: 'Backlog', href: backlogTareas() },
-    { title: 'Validación de avances', href: validacionAvances() },
-    { title: 'Mis tareas', href: misTareas() },
-];
-
 defineOptions({
     layout: {
         breadcrumbs: [
@@ -50,7 +39,6 @@ defineOptions({
         context-label="Coordinación — personas y backlog"
         title="Equipos y distribución de carga"
         description="Usuarios del sistema con cargo CFRD, roles y cantidad de tareas no cerradas."
-        :related-links="relatedLinks"
     >
         <div
             class="overflow-x-auto rounded-lg border border-[#003366]/15 bg-white shadow-sm"

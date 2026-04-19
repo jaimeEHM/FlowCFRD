@@ -11,7 +11,10 @@ class SistemaNotificacionesController extends Controller
 {
     public function __invoke(Request $request): Response
     {
-        $notifications = $request->user()
+        $user = $request->user();
+        $user->unreadNotifications->markAsRead();
+
+        $notifications = $user
             ->notifications()
             ->orderByDesc('created_at')
             ->limit(50)

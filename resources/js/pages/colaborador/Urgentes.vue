@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
 import WorkflowSection from '@/components/workflow/WorkflowSection.vue';
-import { validacionAvances } from '@/routes/coordinacion';
-import { misTareas, urgentes } from '@/routes/colaborador';
+import { urgentes } from '@/routes/colaborador';
 import { dashboard } from '@/routes';
 
 type Task = {
@@ -16,11 +15,6 @@ type Task = {
 defineProps<{
     tasks: Task[];
 }>();
-
-const relatedLinks = [
-    { title: 'Mis tareas', href: misTareas() },
-    { title: 'Validación de avances', href: validacionAvances() },
-];
 
 defineOptions({
     layout: {
@@ -39,7 +33,6 @@ defineOptions({
         context-label="Colaborador — trabajo diario (web)"
         title="Tareas urgentes / imprevistas"
         description="Tareas marcadas como urgentes a tu cargo."
-        :related-links="relatedLinks"
     >
         <div
             class="overflow-x-auto rounded-lg border border-[#003366]/15 bg-white shadow-sm"

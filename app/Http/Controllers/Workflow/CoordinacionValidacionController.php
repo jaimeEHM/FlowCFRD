@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\SkillValidation;
 use App\Models\Task;
 use App\Services\AuditLogger;
+use App\Support\WorkflowRealtime;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -50,6 +51,9 @@ class CoordinacionValidacionController extends Controller
 
         $auditLogger->log('task.validation_resolved', $task);
 
+        $task->refresh();
+        WorkflowRealtime::task($task, 'updated');
+
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Validación de tarea registrada.']);
 
         return redirect()->route('coordinacion.validacion-avances');
@@ -72,6 +76,9 @@ class CoordinacionValidacionController extends Controller
         ]);
 
         $auditLogger->log('skill_validation.resolved', $skillValidation);
+
+        $skillValidation->refresh();
+        WorkflowRealtime::skillValidation($skillValidation, 'updated');
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Validación de skill actualizada.']);
 

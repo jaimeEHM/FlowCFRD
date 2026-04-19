@@ -13,12 +13,14 @@ test('las rutas shell de módulos responden para usuario con rol admin', functio
 
     $this->actingAs($user);
 
-    $this->get(route($routeName))->assertOk();
+    $this->followingRedirects()->get(route($routeName))->assertOk();
 })->with([
     'pmo.tablero-macro',
     'pmo.proyectos',
     'pmo.indicadores',
     'pmo.gantt',
+    'pmo.kanban-macro',
+    'pmo.carga-equipo',
     'coordinacion.equipos-carga',
     'coordinacion.backlog-tareas',
     'coordinacion.validacion-avances',

@@ -81,16 +81,22 @@ const appVersion = computed(() => String(page.props.appVersion ?? '0.0.0'));
                 </h1>
                 <p class="mb-6 max-w-2xl text-lg leading-relaxed text-white/90">
                     Plataforma para coordinar proyectos, cargas y avances con
-                    vistas por rol (PMO, Coordinación, Jefatura y Colaborador
-                    en escritorio), integrando habilidades, analítica y vínculo
-                    con el ecosistema de mejora continua y el LRS institucional
-                    CFRD.
+                    vistas web por rol (PMO, Coordinación, Jefatura y
+                    Colaborador), integrando habilidades, analítica y vínculo con
+                    el ecosistema de mejora continua y el LRS institucional
+                    CFRD. En la versión actual el tablero macro PMO integra Kanban,
+                    carga de equipo, KPI por proyecto, Gantt por tareas y lista
+                    de cartera; workspace por proyecto (tabla, cronograma,
+                    calendario); Kanban colaborativo con grupos; notificaciones
+                    en tiempo real (Reverb + Echo) y API REST con Sanctum.
                 </p>
                 <p class="mb-8 max-w-2xl text-base leading-relaxed text-white/80">
-                    Visión: mejorar de forma
+                    <span class="text-white/90">Visión:</span> mejorar de forma
                     <strong class="font-semibold text-white">transversal y funcional</strong>
                     los procesos de planificación, seguimiento y reconocimiento
-                    del quehacer, con trazabilidad y datos para la decisión.
+                    del quehacer, con trazabilidad y datos para la decisión
+                    (incl. cliente escritorio y automatización LRS en la hoja de
+                    ruta).
                 </p>
                 <div class="flex flex-wrap gap-3">
                     <Link
@@ -112,11 +118,69 @@ const appVersion = computed(() => String(page.props.appVersion ?? '0.0.0'));
             </div>
         </section>
 
+        <section
+            class="border-b border-[#e2e5ea] bg-white/80 py-10 backdrop-blur-sm"
+        >
+            <div class="mx-auto max-w-6xl px-4 sm:px-6">
+                <h2
+                    class="mb-4 text-center text-lg font-semibold text-[#003366] sm:text-xl"
+                >
+                    Estado del producto (v{{ appVersion }})
+                </h2>
+                <p
+                    class="mx-auto mb-6 max-w-3xl text-center text-sm leading-relaxed text-[#555555]"
+                >
+                    Alineado a
+                    <code
+                        class="rounded bg-[#f0f4f8] px-1.5 py-0.5 text-xs text-[#003366]"
+                        >doc/documentacion/</code
+                    >
+                    y al CHANGELOG: lo siguiente está operativo en web; el resto
+                    sigue en la hoja de ruta.
+                </p>
+                <ul
+                    class="mx-auto grid max-w-3xl list-inside list-disc gap-2 text-sm text-[#444444] sm:columns-2 sm:gap-x-8"
+                >
+                    <li class="break-inside-avoid">
+                        Módulos Inertia por rol, RBAC (Spatie) y auditoría de
+                        acciones
+                    </li>
+                    <li class="break-inside-avoid">
+                        Proyectos y tareas; Kanban por proyecto (grupos,
+                        colaboradores, arrastre); backlog, validación de
+                        urgentes y minutas
+                    </li>
+                    <li class="break-inside-avoid">
+                        PMO: tablero macro con pestañas (indicadores, Gantt por
+                        tareas, lista cartera, Kanban, carga equipo) y edición
+                        tipo Monday en cartera
+                    </li>
+                    <li class="break-inside-avoid">
+                        Matriz de skills y mapa colaboradores–proyectos (grafo
+                        interactivo)
+                    </li>
+                    <li class="break-inside-avoid">
+                        API REST
+                        <code class="text-xs text-[#003366]">/api/v1</code>
+                        con Laravel Sanctum (tokens Bearer)
+                    </li>
+                    <li class="break-inside-avoid">
+                        Seed demo: equipo CFRD y cartera de proyectos; OAuth
+                        Google y login desarrollo
+                    </li>
+                    <li class="break-inside-avoid text-[#666666]">
+                        Próximo foco: cliente escritorio (Echo opcional), envío
+                        LRS xAPI, analítica de sobrecarga
+                    </li>
+                </ul>
+            </div>
+        </section>
+
         <section class="mx-auto max-w-6xl px-4 py-14 sm:px-6">
             <h2
                 class="mb-8 text-center text-xl font-semibold text-[#003366] sm:text-2xl"
             >
-                Qué habilita Workflow
+                Pilares (visión y evolución)
             </h2>
             <ul
                 class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
@@ -128,9 +192,17 @@ const appVersion = computed(() => String(page.props.appVersion ?? '0.0.0'));
                         Operación y roles
                     </h3>
                     <p class="text-sm leading-relaxed text-[#666666]">
-                        Tableros estilo Monday, Gantt, Kanban y app desktop para
-                        ejecutar tareas con reglas claras de validación y
-                        auditoría.
+                        <strong class="font-medium text-[#333333]">Hoy:</strong>
+                        workspace por proyecto (tabla, cronograma, calendario,
+                        Kanban), tablero macro PMO con segmentos, API
+                        <code class="text-xs text-[#003366]">/api/v1</code>.
+                        <span class="mt-1 block text-[#888888]">
+                            <strong class="font-medium text-[#555555]"
+                                >Hoja de ruta:</strong
+                            >
+                            aplicación escritorio Electron con tiempo real
+                            opcional.
+                        </span>
                     </p>
                 </li>
                 <li
@@ -140,8 +212,16 @@ const appVersion = computed(() => String(page.props.appVersion ?? '0.0.0'));
                         Talento y LRS
                     </h3>
                     <p class="text-sm leading-relaxed text-[#666666]">
-                        Skills con validación 360° y registro de actividades
-                        alineado al banco de verbos CFRD (xAPI).
+                        <strong class="font-medium text-[#333333]">Hoy:</strong>
+                        skills con validaciones en flujo, mapa de relaciones,
+                        pantalla LRS (configuración).
+                        <span class="mt-1 block text-[#888888]">
+                            <strong class="font-medium text-[#555555]"
+                                >Hoja de ruta:</strong
+                            >
+                            cierre 360° completo y envío de statements xAPI al
+                            LRS institucional.
+                        </span>
                     </p>
                 </li>
                 <li
@@ -151,8 +231,16 @@ const appVersion = computed(() => String(page.props.appVersion ?? '0.0.0'));
                         Mejora continua
                     </h3>
                     <p class="text-sm leading-relaxed text-[#666666]">
-                        Alertas de sobrecarga, KPIs y trazabilidad para apoyar
-                        decisiones y la calidad de los procesos en el tiempo.
+                        <strong class="font-medium text-[#333333]">Hoy:</strong>
+                        KPI y Gantt por tareas en tablero macro, mapa de calor de
+                        carga, notificaciones persistidas y push vía Reverb,
+                        recargas Inertia selectivas, auditoría.
+                        <span class="mt-1 block text-[#888888]">
+                            <strong class="font-medium text-[#555555]"
+                                >Hoja de ruta:</strong
+                            >
+                            alertas de sobrecarga y analítica más profunda.
+                        </span>
                     </p>
                 </li>
             </ul>
@@ -167,10 +255,16 @@ const appVersion = computed(() => String(page.props.appVersion ?? '0.0.0'));
                         Workflow · CFRD · Universidad de Concepción
                     </p>
                     <p class="mt-1 text-xs text-white/70">
-                        Versión {{ appVersion }} — actualizar junto con
+                        Versión {{ appVersion }} (fuente:
                         <code class="rounded bg-white/10 px-1">composer.json</code>
+                        vía Inertia). Documentación viva y notas de release:
+                        <code class="rounded bg-white/10 px-1"
+                            >doc/documentacion/</code
+                        >
                         y
-                        <code class="rounded bg-white/10 px-1">CHANGELOG</code>.
+                        <code class="rounded bg-white/10 px-1"
+                            >doc/project/CHANGELOG.md</code
+                        >.
                     </p>
                 </div>
                 <div class="flex flex-wrap gap-4 text-xs">

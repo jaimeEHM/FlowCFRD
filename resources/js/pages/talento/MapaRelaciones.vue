@@ -2,9 +2,8 @@
 import { Head } from '@inertiajs/vue3';
 import WorkflowSection from '@/components/workflow/WorkflowSection.vue';
 import RelacionesFlow from '@/components/workflow/RelacionesFlow.vue';
-import { proyectos } from '@/routes/pmo';
 import { dashboard } from '@/routes';
-import { mapaRelaciones, matrizSkills } from '@/routes/talento';
+import { mapaRelaciones } from '@/routes/talento';
 
 type Edge = {
     user_id: number;
@@ -18,11 +17,6 @@ defineProps<{
     edges: Edge[];
     nodes_summary: { usuarios: number; proyectos: number; relaciones: number };
 }>();
-
-const relatedLinks = [
-    { title: 'Matriz de skills', href: matrizSkills() },
-    { title: 'Proyectos', href: proyectos() },
-];
 
 defineOptions({
     layout: {
@@ -41,7 +35,6 @@ defineOptions({
         context-label="Talento y mejora continua"
         title="Mapa colaboradores–proyectos"
         description="Red tipo telaraña: colaboradores y proyectos en el mismo plano, posiciones calculadas para cruzar relaciones de forma orgánica. Arrastra el lienzo, usa zoom (controles o rueda) y puedes mover nodos. Las aristas curvas muestran cuántas tareas vinculan cada par persona–proyecto."
-        :related-links="relatedLinks"
     >
         <p class="text-sm text-[#666]">
             Resumen: {{ nodes_summary.usuarios }} usuarios con tareas,

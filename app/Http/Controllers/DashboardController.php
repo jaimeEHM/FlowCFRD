@@ -130,7 +130,7 @@ class DashboardController extends Controller
                 ->whereIn('project_id', $myProjectIds)
                 ->where('status', '!=', Task::STATUS_HECHA)
                 ->with(['project:id,name'])
-                ->orderByRaw('CASE WHEN is_urgent = 1 THEN 0 ELSE 1 END')
+                ->orderByDesc('is_urgent')
                 ->orderBy('due_date')
                 ->limit(6)
                 ->get()
@@ -172,7 +172,7 @@ class DashboardController extends Controller
                 ->where('assignee_id', $user->id)
                 ->where('status', '!=', Task::STATUS_HECHA)
                 ->with(['project:id,name'])
-                ->orderByRaw('CASE WHEN is_urgent = 1 THEN 0 ELSE 1 END')
+                ->orderByDesc('is_urgent')
                 ->orderBy('due_date')
                 ->limit(8)
                 ->get()
@@ -208,12 +208,44 @@ class DashboardController extends Controller
             ];
         }
 
+        $notificationFeed = $user
+            ->notifications()
+            ->orderByDesc('created_at')
+            ->limit(8)
+            ->get()
+            ->map(function ($n) {
+                /** @var array<string, mixed> $data */
+                $data = is_array($n->data) ? $n->data : [];
+                /** @var array<string, mixed> $meta */
+                $meta = isset($data['meta']) && is_array($data['meta']) ? $data['meta'] : [];
+
+                $href = route('sistema.notificaciones');
+                if (isset($meta['project_id'])) {
+                    $href = route('proyecto.kanban', ['project_id' => $meta['project_id']]);
+                } elseif (isset($meta['skill_validation_id'])) {
+                    $href = route('coordinacion.validacion-avances');
+                }
+
+                return [
+                    'id' => $n->id,
+                    'title' => isset($data['title']) && is_string($data['title']) ? $data['title'] : 'Aviso',
+                    'body' => isset($data['body']) && is_string($data['body']) ? $data['body'] : '',
+                    'kind' => isset($data['kind']) && is_string($data['kind']) ? $data['kind'] : null,
+                    'created_at' => $n->created_at?->toIso8601String(),
+                    'read_at' => $n->read_at?->toIso8601String(),
+                    'href' => $href,
+                ];
+            })
+            ->values()
+            ->all();
+
         return Inertia::render('Dashboard', [
             'greeting' => [
                 'title' => $this->greetingTitle($user->name),
                 'subtitle' => 'Tableros, grupos e ítems con estado — inspirado en Monday.com como referencia de UX para este workflow CFRD.',
             ],
             'blocks' => $blocks,
+            'notification_feed' => $notificationFeed,
         ]);
     }
 

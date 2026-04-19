@@ -1,6 +1,6 @@
 # Workflow (backend y web)
 
-**Versión actual:** `0.1.0` (ver también `composer.json` y [`doc/project/versions.json`](../doc/project/versions.json)).
+**Versión actual:** `0.3.0` (ver también `composer.json` y [`doc/project/versions.json`](../doc/project/versions.json)).
 
 Aplicación **Laravel 13** con interfaz **Vue + Inertia**, API REST bajo `/api` para el cliente **Workflow Desktop** y funciones web para PMO, Coordinación y Jefatura de proyecto.
 

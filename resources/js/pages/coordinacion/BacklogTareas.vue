@@ -7,12 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { dashboard } from '@/routes';
-import {
-    backlogTareas,
-    equiposCarga,
-    validacionAvances,
-} from '@/routes/coordinacion';
-import { kanban } from '@/routes/proyecto';
+import { backlogTareas } from '@/routes/coordinacion';
 import { store as postBacklog } from '@/routes/coordinacion/backlog-tareas';
 
 type Task = {
@@ -44,12 +39,6 @@ function submit() {
     form.post(postBacklog.url());
 }
 
-const relatedLinks = [
-    { title: 'Equipos y carga', href: equiposCarga() },
-    { title: 'Validación de avances', href: validacionAvances() },
-    { title: 'Kanban', href: kanban() },
-];
-
 defineOptions({
     layout: {
         breadcrumbs: [
@@ -67,7 +56,6 @@ defineOptions({
         context-label="Coordinación — personas y backlog"
         title="Backlog de tareas"
         description="Listado ordenado y alta de ítems vinculados a un proyecto."
-        :related-links="relatedLinks"
     >
         <div class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_300px]">
             <div

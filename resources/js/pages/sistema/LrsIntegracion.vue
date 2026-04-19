@@ -2,7 +2,7 @@
 import { Head } from '@inertiajs/vue3';
 import WorkflowSection from '@/components/workflow/WorkflowSection.vue';
 import { dashboard } from '@/routes';
-import { auditoria, lrs, notificaciones } from '@/routes/sistema';
+import { lrs } from '@/routes/sistema';
 
 defineProps<{
     lrs_enabled: boolean;
@@ -10,29 +10,23 @@ defineProps<{
     lrs_has_key: boolean;
 }>();
 
-const relatedLinks = [
-    { title: 'Auditoría', href: auditoria() },
-    { title: 'Notificaciones', href: notificaciones() },
-];
-
 defineOptions({
     layout: {
         breadcrumbs: [
             { title: 'Inicio', href: dashboard() },
-            { title: 'LRS', href: lrs() },
+            { title: 'Integraciones', href: lrs() },
         ],
     },
 });
 </script>
 
 <template>
-    <Head title="LRS" />
+    <Head title="Integraciones — LRS / xAPI" />
 
     <WorkflowSection
         context-label="Sistema y cumplimiento"
-        title="Integración LRS / xAPI (CFRD)"
-        description="Estado de configuración para envío de statements al LRS institucional."
-        :related-links="relatedLinks"
+        title="Integraciones — LRS / xAPI (CFRD)"
+        description="Conexión con el LRS institucional mediante statements xAPI; aquí ves si el conector está configurado en el entorno."
     >
         <dl class="space-y-3 rounded-lg border border-[#003366]/15 bg-[#f8fafc] p-4 text-sm">
             <div class="flex justify-between gap-4">

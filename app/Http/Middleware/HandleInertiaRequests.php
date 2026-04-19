@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Project;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -44,15 +45,35 @@ class HandleInertiaRequests extends Middleware
             }
         }
 
+        $user = $request->user();
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
             'appVersion' => $composerVersion,
             'cfrdDomain' => config('workflow.cfrd_email_domain'),
+            'workflowRealtimeEnabled' => config('broadcasting.default') !== 'null',
+            'unread_notifications_count' => $user !== null
+                ? $user->unreadNotifications()->count()
+                : 0,
             'auth' => [
-                'user' => $request->user(),
+                'user' => $user,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'sidebarProjects' => $user !== null
+                ? Project::queryForUser($user)
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'code', 'status'])
+                    ->map(fn (Project $p) => [
+                        'id' => $p->id,
+                        'name' => $p->name,
+                        'code' => $p->code,
+                        'status' => $p->status,
+                    ])
+                    ->values()
+                    ->all()
+                : [],
+            'sidebarCanCreateProject' => $user !== null && $user->hasRole(['admin', 'pmo']),
         ];
     }
 }
