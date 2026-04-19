@@ -35,9 +35,20 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $composerVersion = '0.0.0';
+        $composerPath = base_path('composer.json');
+        if (is_readable($composerPath)) {
+            $decoded = json_decode((string) file_get_contents($composerPath), true);
+            if (is_array($decoded) && isset($decoded['version']) && is_string($decoded['version'])) {
+                $composerVersion = $decoded['version'];
+            }
+        }
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
+            'appVersion' => $composerVersion,
+            'cfrdDomain' => config('workflow.cfrd_email_domain'),
             'auth' => [
                 'user' => $request->user(),
             ],
