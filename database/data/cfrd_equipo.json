@@ -1,0 +1,230 @@
+{
+    "_doc": "Nómina basada en https://cfrd.udec.cl/equipo/ (correos @udec.cl). Incluye cuenta técnica admin@cfrd.cl (no figura en la web). Roles de aplicación son criterio operativo.",
+    "equipo": [
+        {
+            "email": "admin@cfrd.cl",
+            "nombre": "Administrador Workflow",
+            "cargo": "Plataforma y desarrollo",
+            "roles": ["admin"]
+        },
+        {
+            "email": "dbordon@udec.cl",
+            "nombre": "Daniel Bordon O.",
+            "cargo": "Director",
+            "roles": ["admin"]
+        },
+        {
+            "email": "claudiavaldes@udec.cl",
+            "nombre": "Claudia Valdés G.",
+            "cargo": "Secretaria Ejecutiva",
+            "roles": ["colaborador"]
+        },
+        {
+            "email": "jfigueroav@udec.cl",
+            "nombre": "Eduardo Figueroa V.",
+            "cargo": "Asistente Operativo",
+            "roles": ["colaborador"]
+        },
+        {
+            "email": "joparedes@udec.cl",
+            "nombre": "José Paredes M.",
+            "cargo": "Asistente Operativo",
+            "roles": ["colaborador"]
+        },
+        {
+            "email": "marcospalma@udec.cl",
+            "nombre": "Marcos Palma M.",
+            "cargo": "Ingeniero de Proyectos",
+            "roles": ["pmo", "jefe_proyecto"]
+        },
+        {
+            "email": "lletelie@udec.cl",
+            "nombre": "Leonardo Letelier S.",
+            "cargo": "Ingeniero de Proyectos",
+            "roles": ["pmo", "jefe_proyecto"]
+        },
+        {
+            "email": "pmartinez@udec.cl",
+            "nombre": "Pedro Martínez C.",
+            "cargo": "Coordinador",
+            "roles": ["coordinador"]
+        },
+        {
+            "email": "fsuazo@udec.cl",
+            "nombre": "Francisca Suazo M.",
+            "cargo": "Arquitecta de Información",
+            "roles": ["colaborador"]
+        },
+        {
+            "email": "aalcaino@udec.cl",
+            "nombre": "Andrea Alcaíno M.",
+            "cargo": "Periodista",
+            "roles": ["colaborador"]
+        },
+        {
+            "email": "gerardolopez@udec.cl",
+            "nombre": "Gerardo López R.",
+            "cargo": "Director de Arte",
+            "roles": ["colaborador"]
+        },
+        {
+            "email": "mmedel@udec.cl",
+            "nombre": "Mauricio Medel A.",
+            "cargo": "Publicista",
+            "roles": ["colaborador"]
+        },
+        {
+            "email": "cristinavergara@udec.cl",
+            "nombre": "Cristina Vergara H.",
+            "cargo": "Motion Graphics",
+            "roles": ["colaborador"]
+        },
+        {
+            "email": "davtorres@udec.cl",
+            "nombre": "David Torres G.",
+            "cargo": "Diseñador Gráfico Digital UI",
+            "roles": ["colaborador"]
+        },
+        {
+            "email": "ivanburgos@udec.cl",
+            "nombre": "Iván Burgos A.",
+            "cargo": "Diseñador Gráfico Digital UI",
+            "roles": ["colaborador"]
+        },
+        {
+            "email": "marcelorivas@udec.cl",
+            "nombre": "Marcelo Rivas M.",
+            "cargo": "Diseñador Gráfico",
+            "roles": ["colaborador"]
+        },
+        {
+            "email": "djarac@udec.cl",
+            "nombre": "Diego Jara C.",
+            "cargo": "Diseñador Gráfico Digital UI",
+            "roles": ["colaborador"]
+        },
+        {
+            "email": "hcerna@udec.cl",
+            "nombre": "Hector Cerna C.",
+            "cargo": "Coordinador",
+            "roles": ["coordinador"]
+        },
+        {
+            "email": "antavila@udec.cl",
+            "nombre": "Antonieta Ávila B.",
+            "cargo": "Diseñadora Instruccional",
+            "roles": ["colaborador"]
+        },
+        {
+            "email": "moiseslizana@udec.cl",
+            "nombre": "Moisés Lizana B.",
+            "cargo": "Diseñador Instruccional",
+            "roles": ["colaborador"]
+        },
+        {
+            "email": "macarenavalenzu@udec.cl",
+            "nombre": "Macarena Valenzuela V.",
+            "cargo": "Diseñadora Instruccional",
+            "roles": ["colaborador"]
+        },
+        {
+            "email": "rrocham@udec.cl",
+            "nombre": "Ricardo Rocha M.",
+            "cargo": "Gestión de Procesos y Calidad",
+            "roles": ["colaborador"]
+        },
+        {
+            "email": "posorio@udec.cl",
+            "nombre": "Paulina Osorio F.",
+            "cargo": "Asesora Lengua de Señas",
+            "roles": ["colaborador"]
+        },
+        {
+            "email": "asilvan@udec.cl",
+            "nombre": "Angelo Silva N.",
+            "cargo": "Coordinador",
+            "roles": ["coordinador"]
+        },
+        {
+            "email": "alontapia@udec.cl",
+            "nombre": "Alonso Tapia A.",
+            "cargo": "Audiovisual",
+            "roles": ["colaborador"]
+        },
+        {
+            "email": "manualbornoz@udec.cl",
+            "nombre": "Manuel Albornoz A.",
+            "cargo": "Audiovisual",
+            "roles": ["colaborador"]
+        },
+        {
+            "email": "frvillegas@udec.cl",
+            "nombre": "Francisco Villegas S.",
+            "cargo": "Audiovisual",
+            "roles": ["colaborador"]
+        },
+        {
+            "email": "guitorres@udec.cl",
+            "nombre": "Guillermo Torres F.",
+            "cargo": "Audiovisual",
+            "roles": ["colaborador"]
+        },
+        {
+            "email": "pedrogodoy@udec.cl",
+            "nombre": "Pedro Godoy S.",
+            "cargo": "Coordinador",
+            "roles": ["coordinador"]
+        },
+        {
+            "email": "cvicencio@udec.cl",
+            "nombre": "Carlos Vicencio G.",
+            "cargo": "Informático",
+            "roles": ["colaborador"]
+        },
+        {
+            "email": "arhernandez@udec.cl",
+            "nombre": "Ariel Hernández F.",
+            "cargo": "Informático",
+            "roles": ["colaborador"]
+        },
+        {
+            "email": "jomanriquez@udec.cl",
+            "nombre": "José Manríquez S.",
+            "cargo": "Informático",
+            "roles": ["colaborador"]
+        },
+        {
+            "email": "jaimhernandez@udec.cl",
+            "nombre": "Jaime Hernández M.",
+            "cargo": "Informático",
+            "roles": ["colaborador"]
+        },
+        {
+            "email": "pmasquiaran@udec.cl",
+            "nombre": "Pablo Masquiarán D.",
+            "cargo": "Informático",
+            "roles": ["colaborador"]
+        },
+        {
+            "email": "alfredopacheco@udec.cl",
+            "nombre": "Alfredo Pacheco C.",
+            "cargo": "Informático",
+            "roles": ["colaborador"]
+        },
+        {
+            "email": "gceballos@udec.cl",
+            "nombre": "Guillermo Ceballos",
+            "cargo": "Soporte Técnico",
+            "roles": ["colaborador"]
+        }
+    ],
+    "vinculacion_demo": {
+        "admin_email": "dbordon@udec.cl",
+        "pmo_email": "marcospalma@udec.cl",
+        "coordinador_email": "pmartinez@udec.cl",
+        "jefe_proyecto_principal_email": "marcospalma@udec.cl",
+        "jefe_proyecto_secundario_email": "lletelie@udec.cl",
+        "colaborador_principal_email": "fsuazo@udec.cl",
+        "colaborador_secundario_email": "aalcaino@udec.cl"
+    }
+}

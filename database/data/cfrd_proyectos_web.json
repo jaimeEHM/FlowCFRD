@@ -1,0 +1,131 @@
+{
+    "_fuente": "https://cfrd.udec.cl/proyectos-cfrd/ — nombres y descripciones públicas. Roles de jefe/PMO/coordinación son criterio demo para Workflow.",
+    "proyectos": [
+        {
+            "code": "PRJ-CFRD-001",
+            "name": "PROTEOAR",
+            "description": "Innovación digital para la comprensión molecular.",
+            "status": "activo",
+            "jefe_email": "marcospalma@udec.cl",
+            "created_by_email": "marcospalma@udec.cl",
+            "tareas": [
+                { "title": "Iteración UI visualización molecular 3D", "assignee_email": "marcelorivas@udec.cl", "status": "en_curso", "is_urgent": false, "backlog_order": 0 },
+                { "title": "Revisión de contenidos científicos base", "assignee_email": "rrocham@udec.cl", "status": "revision", "is_urgent": false, "backlog_order": 1 },
+                { "title": "Guion microlearning piloto", "assignee_email": "antavila@udec.cl", "status": "pendiente", "is_urgent": false, "backlog_order": 2 }
+            ]
+        },
+        {
+            "code": "PRJ-CFRD-002",
+            "name": "ChileMIO",
+            "description": "ChileMIO es una iniciativa de divulgación científica impulsada por el Centro de Investigación Oceanográfica COPAS Sur-Austral en colaboración con nuestro Centro y cuya finalidad consiste en fomentar el conocimiento y comprensión del océano de manera entretenida, innovadora e inclusiva.",
+            "status": "activo",
+            "jefe_email": "lletelie@udec.cl",
+            "created_by_email": "pmartinez@udec.cl",
+            "tareas": [
+                { "title": "Guión pieza audiovisual océano", "assignee_email": "aalcaino@udec.cl", "status": "en_curso", "is_urgent": false, "backlog_order": 0 },
+                { "title": "Motion graphics capítulo 2", "assignee_email": "cristinavergara@udec.cl", "status": "pendiente", "is_urgent": false, "backlog_order": 1 },
+                { "title": "Grabación locución en estudio", "assignee_email": "alontapia@udec.cl", "status": "backlog", "is_urgent": false, "backlog_order": 2 }
+            ]
+        },
+        {
+            "code": "PRJ-CFRD-003",
+            "name": "Metamorfosis",
+            "description": "El proyecto Metamorfosis surge como resultado de una tesis del programa de Doctorado en Enfermería de la Universidad de Concepción, con la finalidad de acompañar a mujeres entre 40 y 59 años durante la etapa de la perimenopausia.",
+            "status": "activo",
+            "jefe_email": "marcospalma@udec.cl",
+            "created_by_email": "hcerna@udec.cl",
+            "tareas": [
+                { "title": "Diseño instruccional módulo bienestar", "assignee_email": "moiseslizana@udec.cl", "status": "en_curso", "is_urgent": false, "backlog_order": 0 },
+                { "title": "Accesibilidad y lenguaje inclusivo", "assignee_email": "posorio@udec.cl", "status": "revision", "is_urgent": true, "backlog_order": 1 }
+            ]
+        },
+        {
+            "code": "PRJ-CFRD-004",
+            "name": "Laboratorio Matemático",
+            "description": "En 2023 creamos un repositorio de unidades didácticas con realidad aumentada para el refuerzo de contenidos matemáticos, con el fin de alcanzar óptimos resultados de aprendizaje.",
+            "status": "activo",
+            "jefe_email": "lletelie@udec.cl",
+            "created_by_email": "asilvan@udec.cl",
+            "tareas": [
+                { "title": "Actualización assets RA geometría", "assignee_email": "pmasquiaran@udec.cl", "status": "en_curso", "is_urgent": false, "backlog_order": 0 },
+                { "title": "Pruebas en dispositivos objetivo", "assignee_email": "cvicencio@udec.cl", "status": "backlog", "is_urgent": false, "backlog_order": 1 },
+                { "title": "Secuencia didáctica unidad fracciones", "assignee_email": "macarenavalenzu@udec.cl", "status": "pendiente", "is_urgent": false, "backlog_order": 2 }
+            ]
+        },
+        {
+            "code": "PRJ-CFRD-005",
+            "name": "MOOC",
+            "description": "La Universidad de Concepción, a través de su plataforma Campus Abierto UdeC, dispone de una amplia gama de MOOCs (Massive Open Online Courses) impartidos por docentes de nuestra casa de estudios.",
+            "status": "en_pausa",
+            "jefe_email": "marcospalma@udec.cl",
+            "created_by_email": "dbordon@udec.cl",
+            "tareas": [
+                { "title": "Migración contenidos SCORM nueva plantilla", "assignee_email": "fsuazo@udec.cl", "status": "en_curso", "is_urgent": false, "backlog_order": 0 },
+                { "title": "Checklist QA curso piloto", "assignee_email": "gerardolopez@udec.cl", "status": "revision", "is_urgent": false, "backlog_order": 1 }
+            ]
+        },
+        {
+            "code": "PRJ-CFRD-006",
+            "name": "Magíster en Ergonomía",
+            "description": "El Magíster en Ergonomía de la Facultad de Ciencias Biológicas experimentó una transformación crucial en 2012. En base a nuestras capacidades, el equipo docente decidió transitar hacia la virtualización, dando lugar al primer magíster semipresencial de la Universidad.",
+            "status": "activo",
+            "jefe_email": "lletelie@udec.cl",
+            "created_by_email": "pedrogodoy@udec.cl",
+            "tareas": [
+                { "title": "Soporte LMS cohorte actual", "assignee_email": "gceballos@udec.cl", "status": "pendiente", "is_urgent": false, "backlog_order": 0 },
+                { "title": "Manual de uso para docentes", "assignee_email": "antavila@udec.cl", "status": "backlog", "is_urgent": false, "backlog_order": 1 }
+            ]
+        },
+        {
+            "code": "PRJ-CFRD-007",
+            "name": "UdeC English Online",
+            "description": "El programa UdeC English Online (2005) nace en respuesta a la necesidad de democratizar el acceso al aprendizaje del idioma inglés en un contexto de creciente globalización. Esta plataforma, administrada por el CFRD desde su creación, ofrece una experiencia de aprendizaje personalizada, flexible y de alta calidad.",
+            "status": "activo",
+            "jefe_email": "marcospalma@udec.cl",
+            "created_by_email": "pmartinez@udec.cl",
+            "tareas": [
+                { "title": "Rediseño landing inscripciones", "assignee_email": "ivanburgos@udec.cl", "status": "en_curso", "is_urgent": false, "backlog_order": 0 },
+                { "title": "Campaña redes trimestral", "assignee_email": "mmedel@udec.cl", "status": "pendiente", "is_urgent": false, "backlog_order": 1 },
+                { "title": "Monitoreo métricas uso semanal", "assignee_email": "jomanriquez@udec.cl", "status": "revision", "is_urgent": false, "backlog_order": 2 }
+            ]
+        },
+        {
+            "code": "PRJ-CFRD-008",
+            "name": "CADE",
+            "description": "El CFRD ha trabajado en estrecha colaboración con CADE en el desarrollo e implementación de estrategias didácticas innovadoras que integran las TIC en la experiencia de enseñanza-aprendizaje, y en la creación de materiales gráficos y plataformas web. Además de proporcionarles una constante asesoría comunicacional.",
+            "status": "activo",
+            "jefe_email": "lletelie@udec.cl",
+            "created_by_email": "marcospalma@udec.cl",
+            "tareas": [
+                { "title": "Identidad gráfica piezas 2026", "assignee_email": "davtorres@udec.cl", "status": "en_curso", "is_urgent": false, "backlog_order": 0 },
+                { "title": "Taller comunicación interna", "assignee_email": "pedrogodoy@udec.cl", "status": "backlog", "is_urgent": false, "backlog_order": 1 }
+            ]
+        },
+        {
+            "code": "PRJ-CFRD-009",
+            "name": "CREA QUÍMICA",
+            "description": "El proyecto Centro de Recursos para las Ciencias y Aprendizaje de la Química (CREA Química) es una iniciativa pionera que ha transformado la enseñanza de la química general en diversas facultades de la Universidad de Concepción.",
+            "status": "activo",
+            "jefe_email": "marcospalma@udec.cl",
+            "created_by_email": "asilvan@udec.cl",
+            "tareas": [
+                { "title": "Simulaciones HTML5 laboratorio virtual", "assignee_email": "arhernandez@udec.cl", "status": "en_curso", "is_urgent": false, "backlog_order": 0 },
+                { "title": "Ilustraciones didácticas reacciones", "assignee_email": "djarac@udec.cl", "status": "pendiente", "is_urgent": false, "backlog_order": 1 },
+                { "title": "Validación pedagógica con docentes", "assignee_email": "rrocham@udec.cl", "status": "revision", "is_urgent": false, "backlog_order": 2 }
+            ]
+        },
+        {
+            "code": "PRJ-CFRD-010",
+            "name": "Movilidad G9",
+            "description": "Movilidad G9 es un proyecto que busca facilitar la movilidad estudiantil entre las universidades pertenecientes a la Red G9, con el objetivo de ampliar las oportunidades de formación del pregrado, permitiéndoles cursar una asignatura en otra institución.",
+            "status": "borrador",
+            "jefe_email": "lletelie@udec.cl",
+            "created_by_email": "lletelie@udec.cl",
+            "tareas": [
+                { "title": "Levantamiento requisitos integración datos", "assignee_email": "alfredopacheco@udec.cl", "status": "backlog", "is_urgent": false, "backlog_order": 0 },
+                { "title": "Minuta alianza institucional", "assignee_email": "claudiavaldes@udec.cl", "status": "backlog", "is_urgent": false, "backlog_order": 1 },
+                { "title": "Prototipo formulario postulación", "assignee_email": "jfigueroav@udec.cl", "status": "pendiente", "is_urgent": false, "backlog_order": 2 }
+            ]
+        }
+    ]
+}
