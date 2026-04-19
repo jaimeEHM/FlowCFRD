@@ -2,10 +2,11 @@
 
 namespace App\Providers;
 
-use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
+use App\Models\User;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -29,8 +30,37 @@ class FortifyServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureActions();
+        $this->configureAuthentication();
         $this->configureViews();
         $this->configureRateLimiting();
+    }
+
+    /**
+     * Solo la cuenta de desarrollo puede usar el formulario email/contraseña.
+     */
+    private function configureAuthentication(): void
+    {
+        Fortify::authenticateUsing(function (Request $request): ?User {
+            $allowedEmail = strtolower((string) config('workflow.dev_password_login_email'));
+            $attemptEmail = strtolower((string) $request->input('email', ''));
+
+            $allowedUser = User::findForCfrdEmail($allowedEmail);
+            $attemptUser = User::findForCfrdEmail($attemptEmail);
+
+            if ($allowedUser === null || $attemptUser === null || $allowedUser->id !== $attemptUser->id) {
+                return null;
+            }
+
+            if ($attemptUser->password === null) {
+                return null;
+            }
+
+            if (! Hash::check((string) $request->input('password'), $attemptUser->password)) {
+                return null;
+            }
+
+            return $attemptUser;
+        });
     }
 
     /**
@@ -39,7 +69,6 @@ class FortifyServiceProvider extends ServiceProvider
     private function configureActions(): void
     {
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
-        Fortify::createUsersUsing(CreateNewUser::class);
     }
 
     /**
@@ -49,8 +78,11 @@ class FortifyServiceProvider extends ServiceProvider
     {
         Fortify::loginView(fn (Request $request) => Inertia::render('auth/Login', [
             'canResetPassword' => Features::enabled(Features::resetPasswords()),
-            'canRegister' => Features::enabled(Features::registration()),
             'status' => $request->session()->get('status'),
+            'googleOAuthConfigured' => filled(config('services.google.client_id')),
+            'googleAuthUrl' => route('google.redirect'),
+            'cfrdDomain' => config('workflow.cfrd_email_domain'),
+            'devPasswordLoginEmail' => config('workflow.dev_password_login_email'),
         ]));
 
         Fortify::resetPasswordView(fn (Request $request) => Inertia::render('auth/ResetPassword', [
@@ -65,8 +97,6 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::verifyEmailView(fn (Request $request) => Inertia::render('auth/VerifyEmail', [
             'status' => $request->session()->get('status'),
         ]));
-
-        Fortify::registerView(fn () => Inertia::render('auth/Register'));
 
         Fortify::twoFactorChallengeView(fn () => Inertia::render('auth/TwoFactorChallenge'));
 
