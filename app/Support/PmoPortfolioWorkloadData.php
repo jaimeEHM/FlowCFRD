@@ -6,17 +6,30 @@ use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 /**
  * Carga de tareas abiertas por responsable, apilada por proyecto (cartera) o por estado (proyecto).
  */
 final class PmoPortfolioWorkloadData
 {
+    private static function displayName(string $name): string
+    {
+        if (Str::contains($name, ' — ')) {
+            return (string) strstr($name, ' — ', true);
+        }
+        if (Str::contains($name, ' - ')) {
+            return (string) strstr($name, ' - ', true);
+        }
+
+        return $name;
+    }
+
     /**
      * @param  Collection<int, Project>  $projects
      * @return array{
      *     mode: string,
-     *     people: list<array{id: int, name: string, total: int}>,
+     *     people: list<array{id: int, name: string, total: int, projects_count: int}>,
      *     stacks: list<array{label: string, sub?: string|null}>,
      *     matrix: list<list<int>>,
      *     heatmap_max: int,
@@ -68,10 +81,16 @@ final class PmoPortfolioWorkloadData
 
         $people = [];
         foreach ($orderedUserIds as $uid) {
+            $projectsCount = (clone $q)
+                ->where('assignee_id', $uid)
+                ->distinct('project_id')
+                ->count('project_id');
+
             $people[] = [
                 'id' => (int) $uid,
-                'name' => (string) ($userNames[$uid] ?? ('#'.$uid)),
+                'name' => self::displayName((string) ($userNames[$uid] ?? ('#'.$uid))),
                 'total' => (int) ($totalsByUser[$uid] ?? 0),
+                'projects_count' => (int) $projectsCount,
             ];
         }
 
@@ -181,7 +200,7 @@ final class PmoPortfolioWorkloadData
     /**
      * @return array{
      *     mode: string,
-     *     people: list<array{id: int, name: string, total: int}>,
+     *     people: list<array{id: int, name: string, total: int, projects_count: int}>,
      *     stacks: list<array{label: string, sub?: string|null}>,
      *     matrix: list<list<int>>,
      *     heatmap_max: int,

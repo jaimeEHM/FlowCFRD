@@ -8,6 +8,12 @@
             "roles": ["admin"]
         },
         {
+            "email": "patricio@cfrd.cl",
+            "nombre": "Patricio",
+            "cargo": "Administrador",
+            "roles": ["admin"]
+        },
+        {
             "email": "dbordon@udec.cl",
             "nombre": "Daniel Bordon O.",
             "cargo": "Director",

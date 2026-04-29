@@ -91,13 +91,14 @@ final class PmoMacroVisibilityService
     }
 
     /**
-     * @return array{kpi: bool, gantt: bool, lista: bool, kanban: bool, carga: bool}
+     * @return array{kpi: bool, gantt: bool, calendario: bool, lista: bool, kanban: bool, carga: bool}
      */
     public function visibleTabSegmentsFor(User $user): array
     {
         return [
             'kpi' => $this->userMaySee($user, 'segment.kpi'),
             'gantt' => $this->userMaySee($user, 'segment.gantt'),
+            'calendario' => $this->userMaySee($user, 'segment.calendario'),
             'lista' => $this->userMaySee($user, 'segment.lista'),
             'kanban' => $this->userMaySee($user, 'segment.kanban'),
             'carga' => $this->userMaySee($user, 'segment.carga'),

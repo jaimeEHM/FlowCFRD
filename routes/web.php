@@ -14,8 +14,10 @@ use App\Http\Controllers\Workflow\ProyectoKanbanController;
 use App\Http\Controllers\Workflow\ProyectoMinutasController;
 use App\Http\Controllers\Workflow\ProyectoWorkspaceController;
 use App\Http\Controllers\Workflow\SistemaAuditoriaController;
+use App\Http\Controllers\Workflow\SistemaConfiguracionTransversalController;
 use App\Http\Controllers\Workflow\SistemaLrsController;
 use App\Http\Controllers\Workflow\SistemaNotificacionesController;
+use App\Http\Controllers\Workflow\SistemaUsuariosRolesController;
 use App\Http\Controllers\Workflow\TalentoMapaRelacionesController;
 use App\Http\Controllers\Workflow\TalentoMatrizSkillsController;
 use Illuminate\Support\Facades\Route;
@@ -25,6 +27,7 @@ Route::inertia('/', 'Welcome')->name('home');
 Route::middleware('guest')->group(function () {
     Route::get('auth/google', [GoogleAuthController::class, 'redirect'])->name('google.redirect');
     Route::get('auth/google/callback', [GoogleAuthController::class, 'callback'])->name('google.callback');
+    Route::post('auth/google/token', [GoogleAuthController::class, 'tokenLogin'])->name('google.token');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -34,6 +37,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('tablero-macro', PmoTableroMacroController::class)->name('tablero-macro');
         Route::get('indicadores', fn () => redirect()->route('pmo.tablero-macro', ['segment' => 'kpi']))->name('indicadores');
         Route::get('gantt', fn () => redirect()->route('pmo.tablero-macro', ['segment' => 'gantt']))->name('gantt');
+        Route::get('calendario-macro', fn () => redirect()->route('pmo.tablero-macro', ['segment' => 'calendario']))->name('calendario-macro');
         Route::get('kanban-macro', fn () => redirect()->route('pmo.tablero-macro', ['segment' => 'kanban']))->name('kanban-macro');
         Route::get('carga-equipo', fn () => redirect()->route('pmo.tablero-macro', ['segment' => 'carga']))->name('carga-equipo');
     });
@@ -81,6 +85,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('sistema')->name('sistema.')->group(function () {
         Route::middleware('role:admin|pmo')->group(function () {
             Route::get('auditoria', SistemaAuditoriaController::class)->name('auditoria');
+            Route::get('configuracion-transversal', SistemaConfiguracionTransversalController::class)->name('configuracion-transversal');
+            Route::patch('configuracion-transversal', [SistemaConfiguracionTransversalController::class, 'update'])->name('configuracion-transversal.update');
+            Route::get('usuarios-roles', SistemaUsuariosRolesController::class)->name('usuarios-roles');
+            Route::patch('usuarios-roles/{user}', [SistemaUsuariosRolesController::class, 'update'])->name('usuarios-roles.update');
             Route::get('lrs', SistemaLrsController::class)->name('lrs');
         });
         Route::middleware('role:admin|pmo|coordinador|jefe_proyecto|colaborador')->group(function () {

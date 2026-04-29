@@ -23,6 +23,7 @@ class ProyectoKanbanController extends Controller
         $projects = Project::queryForUser($user)->orderBy('name')->get(['id', 'name', 'code']);
 
         $projectId = $request->integer('project_id');
+        $focusTaskId = $request->integer('focus_task_id');
         $project = $projectId
             ? Project::queryForUser($user)->whereKey($projectId)->first()
             : $projects->first();
@@ -34,7 +35,16 @@ class ProyectoKanbanController extends Controller
                 'groups' => [],
                 'statuses' => Task::STATUSES,
                 'peopleOptions' => [],
+                'focusedTaskId' => null,
             ]);
+        }
+
+        $resolvedFocusTaskId = null;
+        if ($focusTaskId > 0) {
+            $resolvedFocusTaskId = Task::query()
+                ->where('project_id', $project->id)
+                ->whereKey($focusTaskId)
+                ->value('id');
         }
 
         $groups = ProyectoKanbanPayload::groupsForProject($project);
@@ -46,6 +56,7 @@ class ProyectoKanbanController extends Controller
             'groups' => $groups,
             'statuses' => Task::STATUSES,
             'peopleOptions' => $peopleOptions,
+            'focusedTaskId' => $resolvedFocusTaskId,
         ]);
     }
 

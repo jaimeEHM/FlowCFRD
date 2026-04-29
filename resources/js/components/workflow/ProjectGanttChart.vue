@@ -16,17 +16,22 @@ export type GanttProjectRow = {
     name: string;
     starts_at: string | null;
     ends_at: string | null;
+    status?: string;
 };
+
+type GanttViewMode = 'Day' | 'Week' | 'Month' | 'Year';
 
 const props = withDefaults(
     defineProps<{
         projects: GanttProjectRow[];
         /** Prefijo de id en frappe-gantt (`p` = iniciativa, `t` = tarea). */
         rowIdPrefix?: 'p' | 't';
+        viewMode?: GanttViewMode;
         emptyHint?: string;
     }>(),
     {
         rowIdPrefix: 't',
+        viewMode: 'Month',
         emptyHint:
             'No hay tareas con fechas derivables (fecha límite o alta). Añade tareas o define fecha límite para ver barras.',
     },
@@ -143,7 +148,7 @@ function mountGantt(): void {
     chart = withInstantGanttScroll(
         () =>
             new Gantt(host.value as HTMLElement, tasks, {
-                view_mode: 'Month',
+                view_mode: props.viewMode,
                 bar_height: 24,
                 language: 'en',
                 scroll_to: 'today',
@@ -156,6 +161,19 @@ function mountGantt(): void {
 onMounted(() => {
     mountGantt();
 });
+
+watch(
+    () => props.viewMode,
+    () => {
+        if (chart !== null) {
+            chart.change_view_mode(props.viewMode);
+            return;
+        }
+        void nextTick(() => {
+            mountGantt();
+        });
+    },
+);
 
 watch(
     () => props.projects,
@@ -181,6 +199,16 @@ onBeforeUnmount(() => {
         host.value.innerHTML = '';
     }
     chart = null;
+});
+
+function scrollToToday(): void {
+    void nextTick(() => {
+        mountGantt();
+    });
+}
+
+defineExpose<{ scrollToToday: () => void }>({
+    scrollToToday,
 });
 </script>
 
@@ -234,15 +262,24 @@ onBeforeUnmount(() => {
     font-size: 12px;
 }
 
-.project-gantt-host :deep(.gantt-container .side-header) {
-    display: none;
-}
-
 .project-gantt-host :deep(.grid-header) {
     fill: #f1f5f9;
 }
 
 .project-gantt-host :deep(.grid-row) {
     fill: #ffffff;
+}
+
+.project-gantt-host :deep(.side-header) {
+    background: #f8fafc;
+    border-right: 1px solid rgba(0, 51, 102, 0.14);
+}
+
+.project-gantt-host :deep(.side-header .grid-row:hover) {
+    fill: #eff6ff;
+}
+
+.project-gantt-host :deep(.calendar .date) {
+    font-weight: 600;
 }
 </style>

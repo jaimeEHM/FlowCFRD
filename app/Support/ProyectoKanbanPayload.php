@@ -32,6 +32,12 @@ final class ProyectoKanbanPayload
             $project->load(['taskGroups' => fn ($q) => $q->orderBy('position')->orderBy('id')]);
         }
 
+        $transversalEnabled = (bool) config('workflow.transversal_group.enabled', false);
+        $transversalName = (string) config('workflow.transversal_group.name', 'Línea transversal');
+        $taskGroups = $project->taskGroups->filter(
+            fn (TaskGroup $group) => $transversalEnabled || $group->name !== $transversalName
+        )->values();
+
         $tasks = Task::query()
             ->where('project_id', $project->id)
             ->with([
@@ -42,7 +48,7 @@ final class ProyectoKanbanPayload
             ->orderBy('id')
             ->get();
 
-        return $project->taskGroups->map(function (TaskGroup $group) use ($tasks) {
+        return $taskGroups->map(function (TaskGroup $group) use ($tasks) {
             $groupTasks = $tasks->where('task_group_id', $group->id);
             $columns = [];
             foreach (Task::STATUSES as $status) {

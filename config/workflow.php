@@ -34,13 +34,41 @@ return [
     | Acceso por contraseña (solo construcción / desarrollo)
     |--------------------------------------------------------------------------
     |
-    | Única cuenta que puede usar el formulario email/contraseña de Fortify.
-    | Puede ser @cfrd.cl o @udec.cl; se resuelve al mismo usuario en BD si el
-    | local-part coincide (ver User::findForCfrdEmail).
+    | Cuentas permitidas para usar el formulario email/contraseña de Fortify.
+    | Se puede definir una lista separada por coma en WORKFLOW_DEV_PASSWORD_EMAILS.
+    | Si no existe, cae al valor legacy de WORKFLOW_DEV_PASSWORD_EMAIL.
     |
     */
 
     'dev_password_login_email' => env('WORKFLOW_DEV_PASSWORD_EMAIL', 'admin@cfrd.cl'),
+    'dev_password_login_emails' => (function (): array {
+        $csv = (string) env('WORKFLOW_DEV_PASSWORD_EMAILS', '');
+        $emails = $csv !== ''
+            ? explode(',', $csv)
+            : [env('WORKFLOW_DEV_PASSWORD_EMAIL', 'admin@cfrd.cl')];
+
+        $normalized = array_values(array_unique(array_filter(array_map(
+            fn ($email) => strtolower(trim((string) $email)),
+            $emails
+        ))));
+
+        return $normalized !== [] ? $normalized : ['admin@cfrd.cl'];
+    })(),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Segmento transversal (Kanban / Lista)
+    |--------------------------------------------------------------------------
+    |
+    | Se mantiene en BD para futura implementacion, pero puede ocultarse de la
+    | UI operativa. Si esta deshabilitado, las tareas deben operar en "General".
+    |
+    */
+
+    'transversal_group' => [
+        'enabled' => (bool) env('WORKFLOW_TRANSVERSAL_GROUP_ENABLED', false),
+        'name' => env('WORKFLOW_TRANSVERSAL_GROUP_NAME', 'Línea transversal'),
+    ],
 
     /*
     |--------------------------------------------------------------------------

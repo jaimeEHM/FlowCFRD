@@ -34,6 +34,7 @@ const props = defineProps<{
     groups?: GroupPayload[] | null;
     statuses?: string[] | null;
     peopleOptions: Person[];
+    focusedTaskId?: number | null;
 }>();
 
 const projectId = ref(props.project?.id ?? '');
@@ -107,6 +108,7 @@ defineOptions({
                 :groups="groups"
                 :statuses="statuses"
                 :people-options="peopleOptions"
+                :focused-task-id="focusedTaskId ?? null"
                 :portfolio-mode="false"
                 id-suffix="proyecto"
             />

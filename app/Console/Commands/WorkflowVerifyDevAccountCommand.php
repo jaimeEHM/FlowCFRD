@@ -10,7 +10,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
 
 #[Signature('workflow:verify-dev-account')]
-#[Description('Comprueba que exista admin@cfrd.cl, contraseña del seed y coherencia con WORKFLOW_DEV_PASSWORD_EMAIL (login web).')]
+#[Description('Comprueba cuenta(s) de login por contraseña en desarrollo y coherencia de configuración.')]
 class WorkflowVerifyDevAccountCommand extends Command
 {
     public function handle(): int
@@ -21,11 +21,19 @@ class WorkflowVerifyDevAccountCommand extends Command
         $this->info('Workflow — verificación de cuenta de desarrollo');
         $this->newLine();
 
-        $configured = strtolower((string) config('workflow.dev_password_login_email'));
-        $this->line('WORKFLOW_DEV_PASSWORD_EMAIL (config): '.$configured);
+        $configured = config('workflow.dev_password_login_emails', []);
+        if (! is_array($configured) || $configured === []) {
+            $configured = [strtolower((string) config('workflow.dev_password_login_email'))];
+        }
+        $this->line('WORKFLOW_DEV_PASSWORD_EMAIL(S) (config): '.implode(', ', $configured));
 
-        $allowed = User::findForCfrdEmail($configured);
-        $this->line('Usuario resuelto para ese correo: '.($allowed ? "{$allowed->email} (id {$allowed->id})" : '(ninguno)'));
+        $allowedUsers = collect($configured)
+            ->map(fn ($email) => User::findForCfrdEmail((string) $email))
+            ->filter();
+        $allowedIds = $allowedUsers->pluck('id')->unique()->values()->all();
+        $this->line('Usuarios resueltos para login web: '.($allowedUsers->isEmpty()
+            ? '(ninguno)'
+            : $allowedUsers->map(fn (User $u) => "{$u->email} (id {$u->id})")->join(', ')));
 
         $admin = User::query()->where('email', $devEmail)->first();
         if ($admin === null) {
@@ -50,11 +58,10 @@ class WorkflowVerifyDevAccountCommand extends Command
             $this->error('La contraseña no coincide con el hash en BD. Ejecuta de nuevo CfrdDevUserSeeder o migrate:fresh --seed.');
         }
 
-        if ($allowed !== null && $admin->id !== $allowed->id) {
+        if ($allowedIds !== [] && ! in_array($admin->id, $allowedIds, true)) {
             $this->newLine();
-            $this->warn('Atención: el login web por contraseña solo acepta el correo WORKFLOW_DEV_PASSWORD_EMAIL.');
-            $this->warn('Ese correo apunta al usuario id '.$allowed->id.', pero admin@cfrd.cl es id '.$admin->id.'.');
-            $this->warn('Para entrar con admin@cfrd.cl en la web, pon WORKFLOW_DEV_PASSWORD_EMAIL=admin@cfrd.cl en .env');
+            $this->warn('Atención: admin@cfrd.cl no está en la lista permitida de login por contraseña.');
+            $this->warn('Agrégalo en WORKFLOW_DEV_PASSWORD_EMAILS (separado por comas) en .env.');
 
             return self::FAILURE;
         }

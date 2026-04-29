@@ -7,6 +7,7 @@ export type MacroSegment =
     | 'cartera'
     | 'kpi'
     | 'gantt'
+    | 'calendario'
     | 'lista'
     | 'kanban'
     | 'carga';
@@ -16,6 +17,7 @@ const props = defineProps<{
     visibleTabSegments?: {
         kpi: boolean;
         gantt: boolean;
+        calendario: boolean;
         lista: boolean;
         kanban: boolean;
         carga: boolean;
@@ -68,6 +70,9 @@ const showGantt = computed(
 );
 const showLista = computed(
     () => props.visibleTabSegments?.lista !== false,
+);
+const showCalendario = computed(
+    () => props.visibleTabSegments?.calendario !== false,
 );
 const showKanban = computed(
     () => props.visibleTabSegments?.kanban !== false,
@@ -133,6 +138,13 @@ const showCarga = computed(
                 :href="hrefLista()"
             >
                 Lista de tareas
+            </Link>
+            <Link
+                v-if="showCalendario"
+                :class="tabLinkClass('calendario')"
+                :href="href('calendario')"
+            >
+                Calendario
             </Link>
             <Link
                 v-if="showKanban"

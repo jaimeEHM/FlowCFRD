@@ -57,7 +57,17 @@ type Project = {
     tasks_total: number;
 };
 
-type Segment = 'cartera' | 'kpi' | 'gantt' | 'lista' | 'kanban' | 'carga';
+type Segment = 'cartera' | 'kpi' | 'gantt' | 'calendario' | 'lista' | 'kanban' | 'carga';
+type GanttViewMode = 'Day' | 'Week' | 'Month' | 'Year';
+type CalendarView = 'day' | 'week' | 'month';
+type TaskDay = {
+    id: number;
+    title: string;
+    status: string;
+    project_id: number;
+    project_name: string | null;
+    assignee: { name: string } | null;
+};
 
 type KanbanBoardPayload = {
     project: { id: number; name: string; code: string | null };
@@ -89,6 +99,7 @@ const props = defineProps<{
     visibleTabSegments: {
         kpi: boolean;
         gantt: boolean;
+        calendario: boolean;
         lista: boolean;
         kanban: boolean;
         carga: boolean;
@@ -102,6 +113,20 @@ const props = defineProps<{
     kanbanPeopleOptions: TaskListPerson[];
     kanbanPortfolioMode: boolean;
     portfolioWorkload: WorkloadPayload;
+    workloadThresholds: {
+        tasks_per_day: number;
+        alert_days: number;
+        danger_days: number;
+        overload_days: number;
+    };
+    calendar: {
+        view: CalendarView;
+        date: string;
+        start_date: string;
+        end_date: string;
+        label: string;
+        tasks_by_day: Record<string, TaskDay[]>;
+    };
     taskStatuses: string[];
     canEditCarteraFull: boolean;
     usuarios_total: number;
@@ -120,6 +145,9 @@ const pageTitle = computed(() => {
     }
     if (props.activeSegment === 'gantt') {
         return 'Cronograma — Tablero macro PMO';
+    }
+    if (props.activeSegment === 'calendario') {
+        return 'Calendario — Tablero macro PMO';
     }
     if (props.activeSegment === 'lista') {
         return 'Lista de tareas — Tablero macro PMO';
@@ -142,6 +170,11 @@ const boardSubtitle = computed(() => {
     if (props.activeSegment === 'gantt') {
         return 'Vista temporal: barras por tarea (fecha límite o alta).';
     }
+    if (props.activeSegment === 'calendario') {
+        return props.selectedProject !== null
+            ? `Calendario mensual de tareas con vencimiento en «${props.selectedProject.name}».`
+            : 'Calendario mensual de vencimientos para toda la cartera visible.';
+    }
     if (props.activeSegment === 'lista') {
         return props.listaPortfolioMode
             ? 'Lista de todas las tareas de los proyectos visibles en la cartera.'
@@ -154,7 +187,7 @@ const boardSubtitle = computed(() => {
     }
     if (props.activeSegment === 'carga') {
         return props.selectedProject === null
-            ? 'Vista tipo workload: tareas abiertas por responsable, repartidas por proyecto (cartera completa).'
+            ? 'Vista de carga de trabajo: tareas abiertas por responsable, repartidas por proyecto (cartera completa).'
             : `Carga del equipo en «${props.selectedProject.name}»: desglose por estado de tarea.`;
     }
     if (props.selectedProject !== null) {
@@ -168,6 +201,15 @@ const projectFilter = ref('');
 const statusFilter = ref<string>('');
 type TableSortKey = 'name_asc' | 'name_desc' | 'progress_desc' | 'progress_asc';
 const sortKey = ref<TableSortKey>('name_asc');
+const ganttRef = ref<InstanceType<typeof ProjectGanttChart> | null>(null);
+const ganttViewMode = ref<GanttViewMode>('Week');
+const ganttSelectedStatuses = ref<string[]>([]);
+const ganttViewModeLabel: Record<GanttViewMode, string> = {
+    Day: 'Día',
+    Week: 'Semana',
+    Month: 'Mes',
+    Year: 'Año',
+};
 
 function clearTableFilters(): void {
     projectFilter.value = '';
@@ -209,6 +251,49 @@ const filteredProjects = computed(() => {
     return list;
 });
 
+const ganttStatusLabels: Record<string, string> = {
+    pendiente: 'Pendiente',
+    en_progreso: 'En progreso',
+    completada: 'Completada',
+    bloqueada: 'Bloqueada',
+};
+
+const ganttStatusOrder = ['pendiente', 'en_progreso', 'bloqueada', 'completada'];
+
+const ganttAvailableStatuses = computed(() => {
+    const set = new Set(props.ganttProjects.map((t) => t.status).filter(Boolean));
+    return ganttStatusOrder.filter((s) => set.has(s));
+});
+
+watch(
+    ganttAvailableStatuses,
+    (list) => {
+        if (ganttSelectedStatuses.value.length === 0) {
+            ganttSelectedStatuses.value = [...list];
+            return;
+        }
+        ganttSelectedStatuses.value = ganttSelectedStatuses.value.filter((s) => list.includes(s));
+    },
+    { immediate: true },
+);
+
+const filteredGanttProjects = computed(() =>
+    props.ganttProjects.filter((row) =>
+        ganttSelectedStatuses.value.length === 0
+            ? true
+            : ganttSelectedStatuses.value.includes(row.status),
+    ),
+);
+
+const ganttMetrics = computed(() => {
+    const total = filteredGanttProjects.value.length;
+    const completed = filteredGanttProjects.value.filter((t) => t.status === 'completada').length;
+    const inProgress = filteredGanttProjects.value.filter((t) => t.status === 'en_progreso').length;
+    const blocked = filteredGanttProjects.value.filter((t) => t.status === 'bloqueada').length;
+    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+    return { total, completed, inProgress, blocked, completionRate };
+});
+
 const detailOpen = ref(false);
 const createOpen = ref(false);
 const detailProject = ref<Project | null>(null);
@@ -240,7 +325,7 @@ const createForm = useForm({
     acta_constitucion: null as File | null,
 });
 
-/** Acento tipo Monday: borde izquierdo + tono de fila */
+/** Acento visual: borde izquierdo + tono de fila */
 const statusAccent: Record<
     string,
     { border: string; row: string; pill: string }
@@ -326,6 +411,26 @@ function goClearProjectSelection(): void {
     router.get(tableroMacro.url(), {}, { preserveScroll: true });
 }
 
+function toggleGanttStatus(status: string): void {
+    if (ganttSelectedStatuses.value.includes(status)) {
+        ganttSelectedStatuses.value = ganttSelectedStatuses.value.filter((s) => s !== status);
+        return;
+    }
+    ganttSelectedStatuses.value = [...ganttSelectedStatuses.value, status];
+}
+
+function setAllGanttStatuses(): void {
+    ganttSelectedStatuses.value = [...ganttAvailableStatuses.value];
+}
+
+function clearGanttStatuses(): void {
+    ganttSelectedStatuses.value = [];
+}
+
+function goGanttToday(): void {
+    ganttRef.value?.scrollToToday();
+}
+
 function openProjectDetail(p: Project): void {
     if (!props.canEditCarteraFull) {
         return;
@@ -395,6 +500,103 @@ function submitCreate(): void {
 }
 
 const inertiaPage = usePage();
+const calendarView = ref<CalendarView>(props.calendar.view);
+const calendarAnchorDate = ref(props.calendar.date);
+
+function parseIsoLocalDate(iso: string): Date {
+    const [y, m, d] = iso.split('-').map((v) => Number(v));
+    return new Date(y, (m || 1) - 1, d || 1);
+}
+
+function formatIsoLocalDate(date: Date): string {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+watch(
+    () => [props.calendar.view, props.calendar.date],
+    ([v, d]) => {
+        calendarView.value = v;
+        calendarAnchorDate.value = d;
+    },
+);
+
+function shiftCalendarPeriod(delta: number): void {
+    const base = parseIsoLocalDate(calendarAnchorDate.value);
+    if (calendarView.value === 'day') {
+        base.setDate(base.getDate() + delta);
+    } else if (calendarView.value === 'week') {
+        base.setDate(base.getDate() + (7 * delta));
+    } else {
+        base.setMonth(base.getMonth() + delta);
+    }
+
+    const q: Record<string, number | string> = {
+        segment: 'calendario',
+        view: calendarView.value,
+        date: formatIsoLocalDate(base),
+    };
+    if (props.selectedProjectId !== null) {
+        q.project_id = props.selectedProjectId;
+    }
+
+    router.get(tableroMacro.url({ query: q }), {}, { preserveScroll: true });
+}
+
+function openTaskInKanban(task: TaskDay): void {
+    router.get('/proyecto/kanban', {
+        project_id: task.project_id,
+        focus_task_id: task.id,
+    });
+}
+
+const calendarCells = computed(() => {
+    const start = parseIsoLocalDate(props.calendar.start_date);
+    const end = parseIsoLocalDate(props.calendar.end_date);
+    const out: { day: number | null; key: string | null }[] = [];
+    const isBusinessDay = (d: Date) => {
+        const wd = d.getDay();
+        return wd >= 1 && wd <= 5;
+    };
+    const mondayIndex = (d: Date) => (d.getDay() + 6) % 7;
+
+    if (props.calendar.view === 'month') {
+        const firstBusiness = new Date(start);
+        while (!isBusinessDay(firstBusiness) && firstBusiness <= end) {
+            firstBusiness.setDate(firstBusiness.getDate() + 1);
+        }
+        const pad = Math.min(mondayIndex(firstBusiness), 5);
+        for (let i = 0; i < pad; i++) {
+            out.push({ day: null, key: null });
+        }
+    }
+    for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
+        if (!isBusinessDay(dt)) {
+            continue;
+        }
+        const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+        out.push({ day: dt.getDate(), key });
+    }
+
+    if (props.calendar.view === 'month' && out.length % 5 !== 0) {
+        const fill = 5 - (out.length % 5);
+        for (let i = 0; i < fill; i++) {
+            out.push({ day: null, key: null });
+        }
+    }
+
+    return out;
+});
+
+const calendarWeekdayHeaders = computed(() => {
+    if (props.calendar.view === 'day') {
+        return ['Día'];
+    }
+    return ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'];
+});
+
+const calendarGridClass = computed(() =>
+    props.calendar.view === 'day' ? 'grid-cols-1' : 'grid-cols-5',
+);
 
 /** Abre el modal de alta desde el enlace «Nuevo proyecto» del sidebar (`?crear=1`). */
 watch(
@@ -864,7 +1066,220 @@ defineOptions({
                 </p>
             </div>
             <div class="p-4">
-                <ProjectGanttChart :projects="ganttProjects" />
+                <div class="mb-4 rounded-xl border border-[#003366]/12 bg-white p-3 shadow-sm">
+                    <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-semibold uppercase tracking-wide text-[#003366]">
+                                Escala de tiempo
+                            </span>
+                            <div class="inline-flex rounded-lg border border-[#003366]/20 bg-[#f8fafc] p-1">
+                                <button
+                                    v-for="mode in (['Day', 'Week', 'Month', 'Year'] as GanttViewMode[])"
+                                    :key="mode"
+                                    type="button"
+                                    class="rounded-md px-2.5 py-1 text-xs font-medium transition"
+                                    :class="
+                                        ganttViewMode === mode
+                                            ? 'bg-[#003366] text-white shadow-sm'
+                                            : 'text-slate-700 hover:bg-[#e2e8f0]'
+                                    "
+                                    @click="ganttViewMode = mode"
+                                >
+                                    {{ ganttViewModeLabel[mode] }}
+                                </button>
+                            </div>
+                            <Button variant="outline" size="sm" class="h-8" @click="goGanttToday">
+                                Hoy
+                            </Button>
+                        </div>
+                        <div class="text-xs text-slate-600">
+                            Vista Gantt de planificación
+                        </div>
+                    </div>
+
+                    <div class="mb-3 flex flex-wrap gap-2">
+                        <button
+                            v-for="status in ganttAvailableStatuses"
+                            :key="status"
+                            type="button"
+                            class="rounded-full border px-2.5 py-1 text-xs font-medium transition"
+                            :class="
+                                ganttSelectedStatuses.includes(status)
+                                    ? 'border-[#003366] bg-[#003366] text-white'
+                                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                            "
+                            @click="toggleGanttStatus(status)"
+                        >
+                            {{ ganttStatusLabels[status] ?? status }}
+                        </button>
+
+                        <button
+                            type="button"
+                            class="rounded-full border border-slate-300 px-2.5 py-1 text-xs text-slate-700 hover:bg-slate-50"
+                            @click="setAllGanttStatuses"
+                        >
+                            Todos
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-full border border-slate-300 px-2.5 py-1 text-xs text-slate-700 hover:bg-slate-50"
+                            @click="clearGanttStatuses"
+                        >
+                            Ninguno
+                        </button>
+                    </div>
+
+                    <div class="grid gap-2 text-xs text-slate-700 sm:grid-cols-2 lg:grid-cols-5">
+                        <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                            <div class="text-[11px] uppercase tracking-wide text-slate-500">Tareas visibles</div>
+                            <div class="text-base font-semibold text-slate-900">{{ ganttMetrics.total }}</div>
+                        </div>
+                        <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                            <div class="text-[11px] uppercase tracking-wide text-slate-500">Completadas</div>
+                            <div class="text-base font-semibold text-slate-900">{{ ganttMetrics.completed }}</div>
+                        </div>
+                        <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                            <div class="text-[11px] uppercase tracking-wide text-slate-500">En progreso</div>
+                            <div class="text-base font-semibold text-slate-900">{{ ganttMetrics.inProgress }}</div>
+                        </div>
+                        <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                            <div class="text-[11px] uppercase tracking-wide text-slate-500">Bloqueadas</div>
+                            <div class="text-base font-semibold text-slate-900">{{ ganttMetrics.blocked }}</div>
+                        </div>
+                        <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                            <div class="text-[11px] uppercase tracking-wide text-slate-500">Avance</div>
+                            <div class="text-base font-semibold text-slate-900">{{ ganttMetrics.completionRate }}%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <ProjectGanttChart
+                    ref="ganttRef"
+                    :projects="filteredGanttProjects"
+                    :view-mode="ganttViewMode"
+                />
+            </div>
+        </div>
+
+        <div
+            v-else-if="activeSegment === 'calendario'"
+            class="overflow-hidden rounded-xl border border-[#003366]/12 bg-white shadow-[0_1px_3px_rgba(0,51,102,0.08)]"
+        >
+            <div class="border-b border-[#003366]/15 bg-[#f1f5f9] px-4 py-3 shadow-sm">
+                <p class="text-xs font-semibold uppercase tracking-wide text-[#003366]">
+                    Calendario mensual
+                </p>
+                <p class="mt-0.5 text-xs text-slate-600">
+                    Tareas con fecha de vencimiento dentro del mes seleccionado.
+                </p>
+            </div>
+            <div class="p-4">
+                <div class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#003366]/12 bg-white p-3">
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs font-semibold uppercase tracking-wide text-[#003366]">
+                            Vista
+                        </label>
+                        <select
+                            v-model="calendarView"
+                            class="h-8 rounded-md border border-input bg-white px-2 text-xs text-slate-800"
+                            @change="shiftCalendarPeriod(0)"
+                        >
+                            <option value="day">Diario</option>
+                            <option value="week">Semanal</option>
+                            <option value="month">Mensual</option>
+                        </select>
+                    </div>
+                    <button
+                        type="button"
+                        class="rounded-md border border-input px-3 py-1 text-sm"
+                        @click="shiftCalendarPeriod(-1)"
+                    >
+                        ← Anterior
+                    </button>
+                    <h2 class="text-sm font-semibold text-[#003366]">
+                        {{ props.calendar.label }}
+                    </h2>
+                    <button
+                        type="button"
+                        class="rounded-md border border-input px-3 py-1 text-sm"
+                        @click="shiftCalendarPeriod(1)"
+                    >
+                        Siguiente →
+                    </button>
+                </div>
+
+                <div
+                    v-if="calendarView !== 'day'"
+                    class="mt-4 grid gap-px rounded-lg border border-[#003366]/15 bg-[#003366]/15 text-xs"
+                    :class="calendarGridClass"
+                >
+                    <div
+                        v-for="h in calendarWeekdayHeaders"
+                        :key="h"
+                        class="bg-[#f8fafc] py-2 text-center font-semibold text-[#003366]"
+                    >
+                        {{ h }}
+                    </div>
+
+                    <template v-for="(c, idx) in calendarCells" :key="idx">
+                        <div v-if="c.day === null" class="min-h-[6rem] bg-slate-50/80" />
+                        <div v-else class="min-h-[7rem] bg-white p-1.5 align-top">
+                            <span class="font-medium text-[#003366]">{{ c.day }}</span>
+                            <ul class="mt-1 space-y-1">
+                                <li
+                                    v-for="t in props.calendar.tasks_by_day[c.key!] ?? []"
+                                    :key="t.id"
+                                    class="rounded border border-[#003366]/12 bg-[#f8fafc] px-1 py-0.5 text-[10px] leading-tight text-[#333] whitespace-normal break-words transition hover:border-[#003366]/35 hover:bg-[#eef4fb]"
+                                >
+                                    <button
+                                        type="button"
+                                        class="w-full text-left"
+                                        :title="`Ir a Kanban y destacar actividad: ${t.title}`"
+                                        @click="openTaskInKanban(t)"
+                                    >
+                                        <span class="block font-medium">{{ t.title }}</span>
+                                        <span v-if="props.selectedProjectId === null && t.project_name" class="block text-[#64748b]">
+                                            {{ t.project_name }}
+                                        </span>
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                    </template>
+                </div>
+
+                <div
+                    v-if="calendarView === 'day'"
+                    class="mt-4 rounded-lg border border-[#003366]/15 bg-white p-4"
+                >
+                    <h3 class="text-sm font-semibold text-[#003366]">Agenda del día</h3>
+                    <p class="mt-1 text-xs text-slate-600">{{ props.calendar.label }}</p>
+                    <ul class="mt-3 space-y-2">
+                        <li
+                            v-for="t in (props.calendar.tasks_by_day[props.calendar.start_date] ?? [])"
+                            :key="t.id"
+                            class="rounded-md border border-[#003366]/12 bg-[#f8fafc] px-3 py-2 text-sm text-[#1f2937] transition hover:border-[#003366]/35 hover:bg-[#eef4fb]"
+                        >
+                            <button
+                                type="button"
+                                class="w-full text-left"
+                                :title="`Ir a Kanban y destacar actividad: ${t.title}`"
+                                @click="openTaskInKanban(t)"
+                            >
+                                <span class="block font-medium">{{ t.title }}</span>
+                                <span v-if="props.selectedProjectId === null && t.project_name" class="mt-0.5 block text-xs text-[#64748b]">
+                                    {{ t.project_name }}
+                                </span>
+                            </button>
+                        </li>
+                        <li
+                            v-if="(props.calendar.tasks_by_day[props.calendar.start_date] ?? []).length === 0"
+                            class="rounded-md border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-600"
+                        >
+                            Sin tareas con vencimiento para este día.
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
 
@@ -1022,7 +1437,7 @@ defineOptions({
                 <p
                     class="text-xs font-semibold uppercase tracking-wide text-[#003366]"
                 >
-                    Carga por persona (workload)
+                    Carga por persona (carga de trabajo)
                 </p>
                 <p class="mt-0.5 text-xs text-slate-600">
                     Basado en tareas
@@ -1042,6 +1457,7 @@ defineOptions({
                     :workload="props.portfolioWorkload"
                     :portfolio-scope="props.selectedProject === null"
                     :project-name="props.selectedProject?.name ?? null"
+                    :thresholds="props.workloadThresholds"
                 />
             </div>
         </div>

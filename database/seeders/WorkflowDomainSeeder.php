@@ -113,7 +113,8 @@ class WorkflowDomainSeeder extends Seeder
             }
 
             $groupGeneral = TaskGroup::ensureGeneral($project);
-            $groupExtra = TaskGroup::query()->create([
+            // Se conserva para futura implementacion; en operacion actual se oculta por config.
+            TaskGroup::query()->create([
                 'project_id' => $project->id,
                 'name' => 'Línea transversal',
                 'color' => '#F1C400',
@@ -124,8 +125,6 @@ class WorkflowDomainSeeder extends Seeder
             if (! is_array($tareas)) {
                 continue;
             }
-
-            $ti = 0;
 
             foreach ($tareas as $t) {
                 if (! is_array($t)) {
@@ -150,8 +149,7 @@ class WorkflowDomainSeeder extends Seeder
                     continue;
                 }
 
-                $useGroup = ($ti % 3 === 1) ? $groupExtra : $groupGeneral;
-                $ti++;
+                $useGroup = $groupGeneral;
 
                 $kOrder = (int) Task::query()
                     ->where('task_group_id', $useGroup->id)

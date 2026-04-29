@@ -29,6 +29,12 @@ final class ProyectoTaskListPayload
             $project->load(['taskGroups' => fn ($q) => $q->orderBy('position')->orderBy('id')]);
         }
 
+        $transversalEnabled = (bool) config('workflow.transversal_group.enabled', false);
+        $transversalName = (string) config('workflow.transversal_group.name', 'Línea transversal');
+        $visibleGroups = $project->taskGroups->filter(
+            fn (TaskGroup $group) => $transversalEnabled || $group->name !== $transversalName
+        )->values();
+
         $tasks = Task::query()
             ->where('project_id', $project->id)
             ->with(['assignee:id,name,avatar', 'collaborators:id,name,avatar'])
@@ -42,7 +48,7 @@ final class ProyectoTaskListPayload
             ->orderBy('name')
             ->get(['id', 'name', 'avatar']);
 
-        $taskGroups = $project->taskGroups->map(function (TaskGroup $group) use ($tasks, $project) {
+        $taskGroups = $visibleGroups->map(function (TaskGroup $group) use ($tasks, $project) {
             $groupTasks = $tasks->where('task_group_id', $group->id);
             $total = $groupTasks->count();
             $hechas = $groupTasks->where('status', Task::STATUS_HECHA)->count();
@@ -142,7 +148,12 @@ final class ProyectoTaskListPayload
         $taskGroups = [];
         $position = 0;
         foreach ($projectsOrdered as $project) {
-            foreach ($project->taskGroups as $group) {
+            $transversalEnabled = (bool) config('workflow.transversal_group.enabled', false);
+            $transversalName = (string) config('workflow.transversal_group.name', 'Línea transversal');
+            $groups = $project->taskGroups->filter(
+                fn (TaskGroup $group) => $transversalEnabled || $group->name !== $transversalName
+            );
+            foreach ($groups as $group) {
                 $groupTasks = $tasks->where('task_group_id', $group->id);
                 $total = $groupTasks->count();
                 $hechas = $groupTasks->where('status', Task::STATUS_HECHA)->count();

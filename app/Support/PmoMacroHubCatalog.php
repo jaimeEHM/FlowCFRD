@@ -159,6 +159,12 @@ final class PmoMacroHubCatalog
                 'roles' => ['pmo', 'coordinador', 'admin'],
             ],
             [
+                'key' => 'segment.calendario',
+                'segment' => 'calendario',
+                'title' => 'Calendario',
+                'roles' => ['pmo', 'coordinador', 'admin'],
+            ],
+            [
                 'key' => 'segment.lista',
                 'segment' => 'lista',
                 'title' => 'Lista de tareas',

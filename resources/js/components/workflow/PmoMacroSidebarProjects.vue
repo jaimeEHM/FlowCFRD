@@ -39,6 +39,7 @@ const activeSegment = computed(() =>
               | 'cartera'
               | 'kpi'
               | 'gantt'
+              | 'calendario'
               | 'lista'
               | 'kanban'
               | 'carga'

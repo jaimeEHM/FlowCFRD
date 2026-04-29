@@ -9,7 +9,7 @@ import {
     Tooltip,
     type ChartData,
 } from 'chart.js';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Bar } from 'vue-chartjs';
 
 ChartJS.register(
@@ -23,7 +23,7 @@ ChartJS.register(
 
 export type WorkloadPayload = {
     mode: string;
-    people: { id: number; name: string; total: number }[];
+    people: { id: number; name: string; total: number; projects_count: number }[];
     stacks: { label: string; sub?: string | null }[];
     matrix: number[][];
     heatmap_max: number;
@@ -43,7 +43,16 @@ const props = defineProps<{
     /** true = cartera sin proyecto enfocado */
     portfolioScope: boolean;
     projectName?: string | null;
+    thresholds: {
+        tasks_per_day: number;
+        alert_days: number;
+        danger_days: number;
+        overload_days: number;
+    };
 }>();
+
+type WorkloadView = 'heatmap' | 'segments';
+const currentView = ref<WorkloadView>('heatmap');
 
 const chartHeightPx = computed(() => {
     const n = props.workload.people.length;
@@ -118,6 +127,67 @@ function heatTextClass(n: number, max: number): string {
     const t = n / max;
     return t > 0.55 ? 'text-white font-semibold' : 'text-[#0f172a] font-medium';
 }
+
+function estimatedDays(totalTasks: number): number {
+    const capacity = Math.max(1, props.thresholds.tasks_per_day || 1);
+    return totalTasks / capacity;
+}
+
+function workloadLevel(totalTasks: number): 'normal' | 'alerta' | 'peligro' | 'sobrecarga' {
+    const days = estimatedDays(totalTasks);
+    if (days >= props.thresholds.overload_days) {
+        return 'sobrecarga';
+    }
+    if (days >= props.thresholds.danger_days) {
+        return 'peligro';
+    }
+    if (days >= props.thresholds.alert_days) {
+        return 'alerta';
+    }
+    return 'normal';
+}
+
+function rowClass(totalTasks: number): string {
+    const level = workloadLevel(totalTasks);
+    if (level === 'sobrecarga') {
+        return 'bg-[#d21428]/10';
+    }
+    if (level === 'peligro') {
+        return 'bg-[#e69b0a]/18';
+    }
+    if (level === 'alerta') {
+        return 'bg-[#e69b0a]/10';
+    }
+    return '';
+}
+
+function rowCellClass(totalTasks: number): string {
+    const level = workloadLevel(totalTasks);
+    if (level === 'sobrecarga') {
+        return 'bg-[#d21428]/10';
+    }
+    if (level === 'peligro') {
+        return 'bg-[#e69b0a]/18';
+    }
+    if (level === 'alerta') {
+        return 'bg-[#e69b0a]/10';
+    }
+    return 'bg-white';
+}
+
+function rowCellStyle(totalTasks: number): Record<string, string> {
+    const level = workloadLevel(totalTasks);
+    if (level === 'sobrecarga') {
+        return { backgroundColor: 'rgba(210, 20, 40, 0.14)' };
+    }
+    if (level === 'peligro') {
+        return { backgroundColor: 'rgba(230, 155, 10, 0.22)' };
+    }
+    if (level === 'alerta') {
+        return { backgroundColor: 'rgba(230, 155, 10, 0.14)' };
+    }
+    return { backgroundColor: '#ffffff' };
+}
 </script>
 
 <template>
@@ -129,7 +199,7 @@ function heatTextClass(n: number, max: number): string {
                 Resumen
             </p>
             <div
-                class="mt-3 grid gap-3 sm:grid-cols-3"
+                class="mt-3 grid gap-3 sm:grid-cols-4"
             >
                 <div
                     class="rounded-lg border border-[#003366]/10 bg-white/90 px-4 py-3 text-center shadow-sm"
@@ -160,6 +230,20 @@ function heatTextClass(n: number, max: number): string {
                     </p>
                 </div>
                 <div
+                    class="rounded-lg border border-[#003366]/10 bg-white/90 px-4 py-3 text-center shadow-sm"
+                >
+                    <p
+                        class="text-[10px] font-semibold uppercase tracking-wide text-slate-500"
+                    >
+                        Proyectos considerados
+                    </p>
+                    <p
+                        class="mt-1 text-2xl font-bold tabular-nums text-[#003366]"
+                    >
+                        {{ workload.stacks.length }}
+                    </p>
+                </div>
+                <div
                     class="rounded-lg border border-[#F1C400]/40 bg-amber-50/80 px-4 py-3 text-center shadow-sm"
                 >
                     <p
@@ -177,6 +261,33 @@ function heatTextClass(n: number, max: number): string {
             </div>
         </div>
 
+        <div class="inline-flex overflow-hidden rounded-md border border-[#223c6a]/20 bg-[#f1f5f9]">
+            <button
+                type="button"
+                class="px-4 py-2 text-xs font-semibold uppercase tracking-wide transition"
+                :class="
+                    currentView === 'heatmap'
+                        ? 'bg-[#e69b0a]/20 text-[#223c6a] border-b-2 border-[#223c6a]'
+                        : 'text-[#223c6a]/80 hover:bg-[#223c6a]/5'
+                "
+                @click="currentView = 'heatmap'"
+            >
+                Mapa de calor por persona
+            </button>
+            <button
+                type="button"
+                class="px-4 py-2 text-xs font-semibold uppercase tracking-wide transition"
+                :class="
+                    currentView === 'segments'
+                        ? 'bg-[#e69b0a]/20 text-[#223c6a] border-b-2 border-[#223c6a]'
+                        : 'text-[#223c6a]/80 hover:bg-[#223c6a]/5'
+                "
+                @click="currentView = 'segments'"
+            >
+                Distribución por segmentos
+            </button>
+        </div>
+
         <div
             v-if="workload.people.length === 0"
             class="rounded-xl border border-dashed border-[#003366]/25 bg-[#fafbfc] px-6 py-14 text-center text-sm text-slate-600"
@@ -192,6 +303,7 @@ function heatTextClass(n: number, max: number): string {
 
         <template v-else>
             <div
+                v-if="currentView === 'segments'"
                 class="overflow-hidden rounded-xl border border-[#003366]/12 bg-white shadow-[0_1px_3px_rgba(0,51,102,0.08)]"
             >
                 <div
@@ -223,6 +335,7 @@ function heatTextClass(n: number, max: number): string {
             </div>
 
             <div
+                v-else
                 class="overflow-hidden rounded-xl border border-[#003366]/12 bg-white shadow-[0_1px_3px_rgba(0,51,102,0.08)]"
             >
                 <div
@@ -241,6 +354,11 @@ function heatTextClass(n: number, max: number): string {
                     </p>
                 </div>
                 <div class="overflow-x-auto p-3">
+                    <div class="mb-2 flex flex-wrap gap-2 text-[11px] text-slate-700">
+                        <span class="rounded border border-[#e69b0a]/40 bg-[#e69b0a]/10 px-2 py-1">Alerta ≥ {{ props.thresholds.alert_days }} días</span>
+                        <span class="rounded border border-[#e69b0a]/45 bg-[#e69b0a]/18 px-2 py-1">Peligro ≥ {{ props.thresholds.danger_days }} días</span>
+                        <span class="rounded border border-[#d21428]/40 bg-[#d21428]/10 px-2 py-1">Sobrecarga ≥ {{ props.thresholds.overload_days }} días</span>
+                    </div>
                     <table
                         class="w-full min-w-[640px] border-collapse text-left text-xs"
                     >
@@ -266,9 +384,14 @@ function heatTextClass(n: number, max: number): string {
                                     >
                                 </th>
                                 <th
+                                    class="min-w-[4.5rem] bg-slate-100 px-2 py-2 text-center font-semibold text-slate-700"
+                                >
+                                    Proy.
+                                </th>
+                                <th
                                     class="min-w-[3rem] bg-slate-100 px-2 py-2 text-center font-semibold text-slate-700"
                                 >
-                                    Σ
+                                    Total
                                 </th>
                             </tr>
                         </thead>
@@ -277,9 +400,12 @@ function heatTextClass(n: number, max: number): string {
                                 v-for="(p, i) in workload.people"
                                 :key="p.id"
                                 class="border-b border-[#003366]/8"
+                                :class="rowClass(p.total)"
                             >
                                 <td
-                                    class="sticky left-0 z-10 max-w-[14rem] truncate bg-white px-2 py-1.5 font-medium text-[#1e293b]"
+                                    class="sticky left-0 z-10 max-w-[14rem] truncate px-2 py-1.5 font-medium text-[#1e293b]"
+                                    :class="rowCellClass(p.total)"
+                                    :style="rowCellStyle(p.total)"
                                     :title="p.name"
                                 >
                                     {{ p.name }}
@@ -288,6 +414,8 @@ function heatTextClass(n: number, max: number): string {
                                     v-for="(cell, j) in workload.matrix[i] ?? []"
                                     :key="j"
                                     class="px-1 py-1 text-center tabular-nums"
+                                    :class="rowCellClass(p.total)"
+                                    :style="rowCellStyle(p.total)"
                                 >
                                     <span
                                         class="inline-flex min-h-[1.75rem] min-w-[2rem] items-center justify-center rounded-md px-1"
@@ -308,7 +436,16 @@ function heatTextClass(n: number, max: number): string {
                                     </span>
                                 </td>
                                 <td
-                                    class="bg-slate-50 px-2 py-1.5 text-center font-semibold tabular-nums text-[#003366]"
+                                    class="px-2 py-1.5 text-center font-semibold tabular-nums text-[#003366]"
+                                    :class="rowCellClass(p.total)"
+                                    :style="rowCellStyle(p.total)"
+                                >
+                                    {{ p.projects_count }}
+                                </td>
+                                <td
+                                    class="px-2 py-1.5 text-center font-semibold tabular-nums text-[#003366]"
+                                    :class="rowCellClass(p.total)"
+                                    :style="rowCellStyle(p.total)"
                                 >
                                     {{ p.total }}
                                 </td>

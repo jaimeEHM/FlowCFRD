@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3';
+import { Plus } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import {
     Dialog,
@@ -172,9 +173,9 @@ function toggleCollaborator(id: number) {
 <template>
     <div>
         <div
-            class="mb-4 flex flex-col gap-3 rounded-xl border border-[#003366]/12 bg-[#f8fafc] p-4 shadow-[0_1px_2px_rgba(0,51,102,0.06)] sm:flex-row sm:flex-wrap sm:items-end sm:justify-between"
+            class="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-[#003366]/12 bg-[#f8fafc] p-4 shadow-[0_1px_2px_rgba(0,51,102,0.06)] lg:flex-nowrap"
         >
-            <div class="flex min-w-0 flex-1 flex-col gap-1">
+            <div class="flex min-w-[20rem] flex-1 flex-col gap-1">
                 <Label
                     :for="`buscar-tareas${suf()}`"
                     class="text-xs text-[#003366]"
@@ -189,27 +190,29 @@ function toggleCollaborator(id: number) {
             </div>
             <div
                 v-if="!portfolioMode"
-                class="flex flex-col gap-1"
+                class="flex min-w-[20rem] flex-col gap-1"
             >
                 <Label
                     :for="`seg-nuevo${suf()}`"
                     class="text-xs text-[#003366]"
                     >Nuevo segmento</Label
                 >
-                <div class="flex flex-wrap gap-2">
+                <div class="flex items-center gap-2">
                     <Input
                         :id="`seg-nuevo${suf()}`"
                         v-model="newSegmentName"
-                        class="min-w-[12rem] max-w-xs"
+                        class="min-w-[12rem] max-w-xs flex-1"
                         placeholder="Nombre del segmento"
                         @keydown.enter.prevent="submitSegment"
                     />
                     <Button
                         type="button"
+                        size="icon"
                         class="bg-[#003366] hover:bg-[#00264d]"
+                        aria-label="Añadir segmento"
                         @click="submitSegment"
                     >
-                        Añadir segmento
+                        <Plus class="h-4 w-4" />
                     </Button>
                 </div>
             </div>

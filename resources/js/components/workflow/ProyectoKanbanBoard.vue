@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { VueDraggable } from 'vue-draggable-plus';
 import type { SortableEvent } from 'sortablejs';
 import {
@@ -47,6 +47,7 @@ const props = defineProps<{
     /** Tablero macro cartera: sin alta de segmento global. */
     portfolioMode?: boolean;
     idSuffix?: string;
+    focusedTaskId?: number | null;
 }>();
 
 const suf = () => (props.idSuffix ? `-${props.idSuffix}` : '');
@@ -258,6 +259,25 @@ const editForm = useForm({
     collaborator_ids: [] as number[],
 });
 
+function isFocusedTask(taskId: number): boolean {
+    return props.focusedTaskId !== null && props.focusedTaskId !== undefined && props.focusedTaskId === taskId;
+}
+
+watch(
+    () => [props.focusedTaskId, localGroups.value.length] as const,
+    async () => {
+        if (!props.focusedTaskId) {
+            return;
+        }
+        await nextTick();
+        const el = document.querySelector(`[data-task-id="${props.focusedTaskId}"]`);
+        if (el instanceof HTMLElement) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        }
+    },
+    { immediate: true },
+);
+
 function openTaskModal(task: Ttask) {
     editing.value = task;
     editForm.title = task.title;
@@ -323,6 +343,12 @@ function toggleCollaborator(id: number) {
         </div>
 
         <div class="space-y-8">
+            <div
+                v-if="props.focusedTaskId"
+                class="rounded-md border border-[#e69b0a]/35 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+            >
+                Actividad destacada desde calendario. La tarjeta correspondiente queda resaltada en el tablero.
+            </div>
             <section
                 v-for="g in localGroups"
                 :key="g.id"
@@ -386,7 +412,12 @@ function toggleCollaborator(id: number) {
                                 v-for="t in (g.columns ?? {})[st] ?? []"
                                 :key="t.id"
                                 :data-task-id="String(t.id)"
-                                class="cursor-grab rounded border border-white bg-white p-2 text-left text-sm shadow-sm active:cursor-grabbing"
+                                class="cursor-grab rounded border bg-white p-2 text-left text-sm shadow-sm active:cursor-grabbing"
+                                :class="
+                                    isFocusedTask(t.id)
+                                        ? 'border-[#e69b0a] ring-2 ring-[#e69b0a]/35'
+                                        : 'border-white'
+                                "
                             >
                                 <div
                                     class="flex items-start justify-between gap-1"

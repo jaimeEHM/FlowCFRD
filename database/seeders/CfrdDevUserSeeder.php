@@ -15,10 +15,12 @@ class CfrdDevUserSeeder extends Seeder
      * El formulario email/contraseña solo admite `workflow.dev_password_login_email` (p. ej. director en seed).
      */
     public const DEV_PASSWORD = 'cf753rd/';
+    private const EMAIL_PASSWORD_OVERRIDES = [
+        'patricio@cfrd.cl' => '1234567890',
+    ];
 
     public function run(): void
     {
-        $hashed = Hash::make(self::DEV_PASSWORD);
         $data = CfrdEquipoConfig::read();
 
         foreach ($data['equipo'] as $row) {
@@ -44,7 +46,7 @@ class CfrdDevUserSeeder extends Seeder
                 [
                     'name' => $name,
                     'cargo' => $cargo,
-                    'password' => $hashed,
+                    'password' => Hash::make(self::passwordForEmail($email)),
                     'email_verified_at' => now(),
                     'avatar' => $avatar,
                 ],
@@ -54,6 +56,13 @@ class CfrdDevUserSeeder extends Seeder
         }
 
         $this->pruneUsersNotInEquipo($data['equipo']);
+    }
+
+    private static function passwordForEmail(string $email): string
+    {
+        $normalized = strtolower($email);
+
+        return self::EMAIL_PASSWORD_OVERRIDES[$normalized] ?? self::DEV_PASSWORD;
     }
 
     /**

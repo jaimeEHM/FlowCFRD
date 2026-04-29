@@ -76,11 +76,12 @@ class ProyectoWorkspaceController extends Controller
     {
         [$project, $projects] = $this->resolveProject($request);
 
-        $month = max(1, min(12, (int) $request->input('month', (int) now()->format('n'))));
-        $year = (int) $request->input('year', (int) now()->format('Y'));
-
-        $start = Carbon::createFromDate($year, $month, 1)->startOfMonth();
-        $end = (clone $start)->endOfMonth();
+        $view = (string) $request->input('view', 'month');
+        if (! in_array($view, ['day', 'week', 'month'], true)) {
+            $view = 'month';
+        }
+        $anchor = Carbon::parse((string) $request->input('date', now()->toDateString()));
+        [$start, $end, $label] = $this->calendarRange($view, $anchor);
 
         $tasksByDay = [];
         if ($project !== null) {
@@ -101,6 +102,7 @@ class ProyectoWorkspaceController extends Controller
                     'id' => $task->id,
                     'title' => $task->title,
                     'status' => $task->status,
+                    'project_id' => $task->project_id,
                     'assignee' => $task->assignee ? ['name' => $task->assignee->name] : null,
                 ];
             }
@@ -110,12 +112,38 @@ class ProyectoWorkspaceController extends Controller
             'project' => $project?->only(['id', 'name', 'code']),
             'projects' => $projects,
             'calendar' => [
-                'month' => $month,
-                'year' => $year,
-                'label' => $start->translatedFormat('F Y'),
+                'view' => $view,
+                'date' => $anchor->toDateString(),
+                'start_date' => $start->toDateString(),
+                'end_date' => $end->toDateString(),
+                'label' => $label,
                 'tasks_by_day' => $tasksByDay,
             ],
         ]);
+    }
+
+    /**
+     * @return array{0: Carbon, 1: Carbon, 2: string}
+     */
+    private function calendarRange(string $view, Carbon $anchor): array
+    {
+        if ($view === 'day') {
+            $start = $anchor->copy()->startOfDay();
+            $end = $anchor->copy()->endOfDay();
+
+            return [$start, $end, $anchor->translatedFormat('d \\d\\e F \\d\\e Y')];
+        }
+        if ($view === 'week') {
+            $start = $anchor->copy()->startOfWeek(Carbon::MONDAY);
+            $end = $anchor->copy()->endOfWeek(Carbon::FRIDAY);
+
+            return [$start, $end, $start->translatedFormat('d M').' - '.$end->translatedFormat('d M Y')];
+        }
+
+        $start = $anchor->copy()->startOfMonth();
+        $end = $anchor->copy()->endOfMonth();
+
+        return [$start, $end, $start->translatedFormat('F Y')];
     }
 
     /**

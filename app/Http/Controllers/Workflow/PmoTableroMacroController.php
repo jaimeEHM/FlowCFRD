@@ -12,6 +12,8 @@ use App\Support\PmoPortfolioWorkloadData;
 use App\Support\ProyectoKanbanPayload;
 use App\Support\ProyectoTaskListPayload;
 use App\Support\TaskGanttRows;
+use App\Support\WorkflowTransversalSettings;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -25,7 +27,7 @@ class PmoTableroMacroController extends Controller
         abort_if($user === null, 403);
 
         $segment = $request->query('segment', 'cartera');
-        if (! in_array($segment, ['cartera', 'kpi', 'gantt', 'lista', 'kanban', 'carga'], true)) {
+        if (! in_array($segment, ['cartera', 'kpi', 'gantt', 'calendario', 'lista', 'kanban', 'carga'], true)) {
             $segment = 'cartera';
         }
 
@@ -34,6 +36,9 @@ class PmoTableroMacroController extends Controller
             return redirect()->route('pmo.tablero-macro');
         }
         if ($segment === 'gantt' && ! $tabs['gantt']) {
+            return redirect()->route('pmo.tablero-macro');
+        }
+        if ($segment === 'calendario' && ! $tabs['calendario']) {
             return redirect()->route('pmo.tablero-macro');
         }
         if ($segment === 'lista' && ! $tabs['lista']) {
@@ -157,6 +162,7 @@ class PmoTableroMacroController extends Controller
         }
 
         $portfolioWorkload = PmoPortfolioWorkloadData::empty();
+        $workloadThresholds = WorkflowTransversalSettings::workload();
         if ($segment === 'carga') {
             $portfolioWorkload = PmoPortfolioWorkloadData::build($projects, $selectedProjectId);
         }
@@ -179,6 +185,48 @@ class PmoTableroMacroController extends Controller
             }
         }
 
+        $calendarView = (string) $request->input('view', 'month');
+        if (! in_array($calendarView, ['day', 'week', 'month'], true)) {
+            $calendarView = 'month';
+        }
+        $calendarAnchor = Carbon::parse((string) $request->input('date', now()->toDateString()));
+        [$calendarStart, $calendarEnd, $calendarLabel] = $this->calendarRange($calendarView, $calendarAnchor);
+        $calendarTasksByDay = [];
+        if ($segment === 'calendario') {
+            $calendarQuery = Task::query()
+                ->whereIn('project_id', $projects->pluck('id'))
+                ->whereNotNull('due_date')
+                ->whereBetween('due_date', [$calendarStart->toDateString(), $calendarEnd->toDateString()])
+                ->with(['assignee:id,name', 'project:id,name']);
+
+            if ($selectedProjectId !== null) {
+                $calendarQuery->where('project_id', $selectedProjectId);
+            }
+
+            $calendarTasks = $calendarQuery
+                ->orderBy('due_date')
+                ->orderBy('id')
+                ->get();
+
+            foreach ($calendarTasks as $task) {
+                $key = $task->due_date?->format('Y-m-d');
+                if ($key === null) {
+                    continue;
+                }
+                if (! isset($calendarTasksByDay[$key])) {
+                    $calendarTasksByDay[$key] = [];
+                }
+                $calendarTasksByDay[$key][] = [
+                    'id' => $task->id,
+                    'title' => $task->title,
+                    'status' => $task->status,
+                    'project_id' => $task->project_id,
+                    'project_name' => $task->project?->name,
+                    'assignee' => $task->assignee ? ['name' => $task->assignee->name] : null,
+                ];
+            }
+        }
+
         return Inertia::render('pmo/TableroMacro', [
             'activeSegment' => $segment,
             'projects' => $projects->map($mapProject),
@@ -197,8 +245,41 @@ class PmoTableroMacroController extends Controller
             'kanbanPeopleOptions' => $kanbanPeopleOptions,
             'kanbanPortfolioMode' => $kanbanPortfolioMode,
             'portfolioWorkload' => $portfolioWorkload,
+            'workloadThresholds' => $workloadThresholds,
+            'calendar' => [
+                'view' => $calendarView,
+                'date' => $calendarAnchor->toDateString(),
+                'start_date' => $calendarStart->toDateString(),
+                'end_date' => $calendarEnd->toDateString(),
+                'label' => $calendarLabel,
+                'tasks_by_day' => $calendarTasksByDay,
+            ],
             'taskStatuses' => Task::STATUSES,
             ...$kpi,
         ]);
+    }
+
+    /**
+     * @return array{0: Carbon, 1: Carbon, 2: string}
+     */
+    private function calendarRange(string $view, Carbon $anchor): array
+    {
+        if ($view === 'day') {
+            $start = $anchor->copy()->startOfDay();
+            $end = $anchor->copy()->endOfDay();
+
+            return [$start, $end, $anchor->translatedFormat('d \\d\\e F \\d\\e Y')];
+        }
+        if ($view === 'week') {
+            $start = $anchor->copy()->startOfWeek(Carbon::MONDAY);
+            $end = $anchor->copy()->endOfWeek(Carbon::FRIDAY);
+
+            return [$start, $end, $start->translatedFormat('d M').' - '.$end->translatedFormat('d M Y')];
+        }
+
+        $start = $anchor->copy()->startOfMonth();
+        $end = $anchor->copy()->endOfMonth();
+
+        return [$start, $end, $start->translatedFormat('F Y')];
     }
 }

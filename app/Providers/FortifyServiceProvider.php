@@ -41,13 +41,23 @@ class FortifyServiceProvider extends ServiceProvider
     private function configureAuthentication(): void
     {
         Fortify::authenticateUsing(function (Request $request): ?User {
-            $allowedEmail = strtolower((string) config('workflow.dev_password_login_email'));
             $attemptEmail = strtolower((string) $request->input('email', ''));
+            $allowedEmails = config('workflow.dev_password_login_emails', []);
+            if (! is_array($allowedEmails) || $allowedEmails === []) {
+                $allowedEmails = [strtolower((string) config('workflow.dev_password_login_email'))];
+            }
 
-            $allowedUser = User::findForCfrdEmail($allowedEmail);
             $attemptUser = User::findForCfrdEmail($attemptEmail);
+            $allowedUserIds = collect($allowedEmails)
+                ->filter(fn ($email) => is_string($email) && trim($email) !== '')
+                ->map(fn (string $email) => User::findForCfrdEmail($email))
+                ->filter()
+                ->pluck('id')
+                ->unique()
+                ->values()
+                ->all();
 
-            if ($allowedUser === null || $attemptUser === null || $allowedUser->id !== $attemptUser->id) {
+            if ($attemptUser === null || $allowedUserIds === [] || ! in_array($attemptUser->id, $allowedUserIds, true)) {
                 return null;
             }
 
@@ -80,9 +90,11 @@ class FortifyServiceProvider extends ServiceProvider
             'canResetPassword' => Features::enabled(Features::resetPasswords()),
             'status' => $request->session()->get('status'),
             'googleOAuthConfigured' => filled(config('services.google.client_id')),
+            'googleClientId' => (string) config('services.google.client_id', ''),
             'googleAuthUrl' => route('google.redirect'),
+            'googleTokenUrl' => route('google.token'),
             'cfrdDomain' => config('workflow.cfrd_email_domain'),
-            'devPasswordLoginEmail' => config('workflow.dev_password_login_email'),
+            'devPasswordLoginEmails' => config('workflow.dev_password_login_emails', []),
         ]));
 
         Fortify::resetPasswordView(fn (Request $request) => Inertia::render('auth/ResetPassword', [
