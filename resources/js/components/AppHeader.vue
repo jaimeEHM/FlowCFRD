@@ -61,6 +61,12 @@ const mainNavItems: NavItem[] = [
 const workflowNavGroups = computed(() =>
     getWorkflowNavGroupsForUser(roleSlugs.value),
 );
+const avatarObjectPosition = computed(() => {
+    const x = Number(auth.value?.user?.avatar_position_x ?? 0);
+    const y = Number(auth.value?.user?.avatar_position_y ?? 0);
+
+    return `${50 + x}% ${50 + y}%`;
+});
 
 const accesosModulosHref = `${dashboard.url()}#modulos`;
 </script>
@@ -196,6 +202,7 @@ const accesosModulosHref = `${dashboard.url()}#modulos`;
                                         v-if="auth.user.avatar"
                                         :src="auth.user.avatar"
                                         :alt="auth.user.name"
+                                        :style="{ objectPosition: avatarObjectPosition }"
                                     />
                                     <AvatarFallback
                                         class="rounded-lg bg-neutral-200 font-semibold text-black"

@@ -5,9 +5,13 @@ import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { initializeFlashToast } from '@/lib/flashToast';
 import { configureEcho } from '@laravel/echo-vue';
 
-configureEcho({
-    broadcaster: 'reverb',
-});
+const reverbEnabled = `${import.meta.env.VITE_REVERB_ENABLED ?? ''}`.toLowerCase() === 'true';
+
+if (reverbEnabled) {
+    configureEcho({
+        broadcaster: 'reverb',
+    });
+}
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 

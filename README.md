@@ -24,7 +24,7 @@ Centralizar el ciclo operativo de proyectos:
 
 ## 2) Stack tecnológico
 
-- **Backend:** PHP 8.3+, Laravel 13, Sanctum, Fortify, Socialite, Spatie Permission, Reverb.
+- **Backend:** PHP 8.4+, Laravel 13, Sanctum, Fortify, Socialite, Spatie Permission, Reverb.
 - **Frontend:** Vue 3, Inertia, Tailwind.
 - **Datos:** PostgreSQL.
 - **Calidad:** Pest, PHPUnit, Laravel Pint.
@@ -182,6 +182,66 @@ En otra terminal:
 npm run dev
 ```
 
+### Arranque con stack CFRD (Traefik + Postgres + Redis)
+
+```bash
+cp .env.example .env
+docker compose -f deploy/cfrd-stack/docker-compose.yml --env-file .env up -d --build
+```
+
+Arranque completo (incluye worker de colas y Reverb):
+
+```bash
+docker compose -f deploy/cfrd-stack/docker-compose.yml --env-file .env --profile queue up -d
+```
+
+Validaciones recomendadas:
+
+```bash
+docker ps --filter name=cfrd-flowcfrd --format "table {{.Names}}\t{{.Status}}"
+docker logs --tail 50 cfrd-flowcfrd-backend
+docker logs --tail 50 cfrd-flowcfrd-reverb
+```
+
+Servicios esperados:
+
+- `cfrd-flowcfrd-backend`: app Laravel (Apache/PHP).
+- `cfrd-flowcfrd-queue`: worker para colas Redis.
+- `cfrd-flowcfrd-reverb`: servidor WebSocket para realtime.
+
+### Inicialización de base de datos (obligatorio primera vez)
+
+```bash
+docker exec cfrd-flowcfrd-backend php artisan key:generate --force
+docker exec cfrd-flowcfrd-backend php artisan migrate --force
+docker exec cfrd-flowcfrd-backend php artisan db:seed --force
+```
+
+### Acceso de desarrollo
+
+- Usuario login por contraseña: `admin@cfrd.cl`
+- Contraseña seed dev: `cf753rd/`
+
+Nota:
+
+- Fortify permite login por contraseña solo a la cuenta configurada en `WORKFLOW_DEV_PASSWORD_EMAIL`.
+- Si cambia esa variable, recuerda ejecutar seed o ajustar usuario en BD.
+
+### Variables clave para Reverb en Docker
+
+Backend/Queue (interno entre contenedores):
+
+- `REVERB_HOST=flowcfrd-reverb`
+- `REVERB_PORT=8080`
+- `REVERB_SCHEME=http`
+
+Frontend (navegador por Traefik/TLS):
+
+- `VITE_REVERB_ENABLED=true`
+- `VITE_REVERB_HOST=flowcfrdlocal.cfrd.cl`
+- `VITE_REVERB_PORT=443`
+- `VITE_REVERB_SCHEME=https`
+
 ### Scripts útiles
 
 - `composer dev`: servidor + cola + logs + Vite en paralelo.
@@ -233,3 +293,51 @@ php artisan test
 - Fuente de versión del paquete backend: `composer.json`
 
 Al publicar cambios de producto, mantener sincronizados `CHANGELOG`, `versions.json`, `composer.json` y este README.
+
+---
+
+## 13) Troubleshooting rapido
+
+### `auth.failed` al intentar login
+
+Causa comun:
+
+- Usuario no existe aun en la BD o no coincide con `WORKFLOW_DEV_PASSWORD_EMAIL`.
+
+Solucion:
+
+```bash
+docker exec cfrd-flowcfrd-backend php artisan db:seed --force
+```
+
+### Pantalla en blanco + errores Mixed Content
+
+Causa comun:
+
+- App servida en `https` pero assets generados en `http`.
+
+Verificar:
+
+- `APP_URL=https://flowcfrdlocal.cfrd.cl`
+- confianza de proxy activa en `bootstrap/app.php` (`trustProxies`).
+
+Luego limpiar cache:
+
+```bash
+docker exec cfrd-flowcfrd-backend php artisan optimize:clear
+```
+
+### Error WebSocket a `wss://localhost:8080`
+
+Causa comun:
+
+- Variables Vite/Reverb para navegador apuntando a `localhost`.
+
+Solucion:
+
+- Usar valores `VITE_REVERB_*` del bloque anterior (host publico Traefik).
+- Recompilar assets si cambiaste `.env`:
+
+```bash
+npm run build
+```

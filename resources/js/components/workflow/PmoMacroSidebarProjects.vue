@@ -111,7 +111,7 @@ const emptyPortfolio = computed(
 
 <template>
     <SidebarSeparator />
-    <SidebarGroup class="group/macro-projects">
+    <SidebarGroup class="group/macro-projects flex min-h-0 flex-1 flex-col">
         <SidebarGroupLabel
             class="text-[11px] text-[#003366]/85"
         >
@@ -168,7 +168,7 @@ const emptyPortfolio = computed(
         </SidebarMenu>
 
         <SidebarGroupContent
-            class="max-h-[min(40vh,320px)] overflow-y-auto overscroll-contain px-0"
+            class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-0"
         >
             <SidebarMenu>
                 <SidebarMenuItem v-for="p in filteredProjects" :key="p.id">

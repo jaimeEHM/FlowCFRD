@@ -44,13 +44,15 @@ const footerNavItems: NavItem[] = [];
             </SidebarMenu>
         </SidebarHeader>
 
-        <SidebarContent>
-            <NavMain
-                v-for="group in navGroups"
-                :key="group.label"
-                :group-label="group.label"
-                :items="group.items"
-            />
+        <SidebarContent class="min-h-0">
+            <div class="shrink-0">
+                <NavMain
+                    v-for="group in navGroups"
+                    :key="group.label"
+                    :group-label="group.label"
+                    :items="group.items"
+                />
+            </div>
             <PmoMacroSidebarProjects />
         </SidebarContent>
 

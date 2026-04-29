@@ -1,0 +1,130 @@
+# Conectar al stack CFRD (Traefik + Postgres + Redis en microservicios_service_net).
+# Desde la raiz del repo: docker compose -f deploy/cfrd-stack/docker-compose.yml --env-file .env up -d --build
+
+name: flowcfrd
+
+services:
+  flowcfrd:
+    build:
+      context: ../../contenedor-flowcfrd/apache
+      dockerfile: Dockerfile
+    container_name: cfrd-flowcfrd-backend
+    restart: unless-stopped
+    env_file:
+      - ../../.env
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      USE_VITE_BUILD: "1"
+      CACHE_STORE: redis
+      SESSION_DRIVER: redis
+      QUEUE_CONNECTION: redis
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_CLIENT: phpredis
+      REDIS_USERNAME: ""
+      REDIS_PASSWORD: ""
+      REVERB_HOST: flowcfrd-reverb
+      REVERB_PORT: "8080"
+      REVERB_SCHEME: http
+    volumes:
+      - ../../:/var/www/html
+    # Permite resolver hostnames del ecosistema CFRD en llamadas internas.
+    extra_hosts:
+      - "moodlejames.cfrd.cl:host-gateway"
+      - "canvasjames.cfrd.cl:host-gateway"
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${CFRD_STACK_NETWORK:-microservicios_service_net}
+      - 'traefik.http.routers.flowcfrd-secure.rule=Host(`flowcfrdlocal.cfrd.cl`)'
+      - traefik.http.routers.flowcfrd-secure.entrypoints=websecure
+      - traefik.http.routers.flowcfrd-secure.tls=true
+      - traefik.http.routers.flowcfrd-secure.service=flowcfrd
+      - traefik.http.services.flowcfrd.loadbalancer.server.port=80
+      - 'traefik.http.routers.flowcfrd-http.rule=Host(`flowcfrdlocal.cfrd.cl`)'
+      - traefik.http.routers.flowcfrd-http.entrypoints=web
+      - traefik.http.routers.flowcfrd-http.middlewares=flowcfrd-redirect-https
+      - traefik.http.middlewares.flowcfrd-redirect-https.redirectscheme.scheme=https
+      - traefik.http.middlewares.flowcfrd-redirect-https.redirectscheme.permanent=true
+    networks:
+      - cfrd_stack
+
+  flowcfrd-reverb:
+    build:
+      context: ../../contenedor-flowcfrd/apache
+      dockerfile: Dockerfile
+    container_name: cfrd-flowcfrd-reverb
+    restart: unless-stopped
+    env_file:
+      - ../../.env
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_CLIENT: phpredis
+      REDIS_USERNAME: ""
+      REDIS_PASSWORD: ""
+      REVERB_SERVER_HOST: 0.0.0.0
+      REVERB_SERVER_PORT: "8080"
+      REVERB_HOST: flowcfrd-reverb
+      REVERB_PORT: "8080"
+      REVERB_SCHEME: http
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    volumes:
+      - ../../:/var/www/html
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${CFRD_STACK_NETWORK:-microservicios_service_net}
+      - 'traefik.http.routers.flowcfrd-reverb-secure.rule=Host(`flowcfrdlocal.cfrd.cl`) && (PathPrefix(`/app`) || PathPrefix(`/apps`))'
+      - traefik.http.routers.flowcfrd-reverb-secure.entrypoints=websecure
+      - traefik.http.routers.flowcfrd-reverb-secure.tls=true
+      - traefik.http.routers.flowcfrd-reverb-secure.service=flowcfrd-reverb
+      - traefik.http.routers.flowcfrd-reverb-secure.priority=100
+      - traefik.http.services.flowcfrd-reverb.loadbalancer.server.port=8080
+      - 'traefik.http.routers.flowcfrd-reverb-http.rule=Host(`flowcfrdlocal.cfrd.cl`) && (PathPrefix(`/app`) || PathPrefix(`/apps`))'
+      - traefik.http.routers.flowcfrd-reverb-http.entrypoints=web
+      - traefik.http.routers.flowcfrd-reverb-http.middlewares=flowcfrd-reverb-redirect-https
+      - traefik.http.routers.flowcfrd-reverb-http.priority=100
+      - traefik.http.middlewares.flowcfrd-reverb-redirect-https.redirectscheme.scheme=https
+      - traefik.http.middlewares.flowcfrd-reverb-redirect-https.redirectscheme.permanent=true
+    networks:
+      - cfrd_stack
+
+  flowcfrd-queue:
+    profiles:
+      - queue
+    build:
+      context: ../../contenedor-flowcfrd/apache
+      dockerfile: Dockerfile
+    container_name: cfrd-flowcfrd-queue
+    restart: unless-stopped
+    env_file:
+      - ../../.env
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      CACHE_STORE: redis
+      SESSION_DRIVER: redis
+      QUEUE_CONNECTION: redis
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_CLIENT: phpredis
+      REDIS_USERNAME: ""
+      REDIS_PASSWORD: ""
+      REVERB_HOST: flowcfrd-reverb
+      REVERB_PORT: "8080"
+      REVERB_SCHEME: http
+    command: php artisan queue:work redis --sleep=3 --tries=3
+    volumes:
+      - ../../:/var/www/html
+    extra_hosts:
+      - "moodlejames.cfrd.cl:host-gateway"
+      - "canvasjames.cfrd.cl:host-gateway"
+    networks:
+      - cfrd_stack
+
+networks:
+  cfrd_stack:
+    external: true
+    name: ${CFRD_STACK_NETWORK:-microservicios_service_net}

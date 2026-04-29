@@ -7,6 +7,8 @@ const props = withDefaults(
     defineProps<{
         name: string;
         avatar?: string | null;
+        avatar_position_x?: number | null;
+        avatar_position_y?: number | null;
         /** xs = 24px, sm = 28px, md = 40px */
         size?: 'xs' | 'sm' | 'md';
         showName?: boolean;
@@ -31,6 +33,12 @@ const sizeClass = computed(() => {
 const fallbackClass = computed(() =>
     props.size === 'xs' ? 'text-[10px]' : 'text-[11px]',
 );
+const avatarObjectPosition = computed(() => {
+    const x = Number(props.avatar_position_x ?? 0);
+    const y = Number(props.avatar_position_y ?? 0);
+
+    return `${50 + x}% ${50 + y}%`;
+});
 </script>
 
 <template>
@@ -40,6 +48,7 @@ const fallbackClass = computed(() =>
                 v-if="avatar && avatar !== ''"
                 :src="avatar"
                 :alt="name"
+                :style="{ objectPosition: avatarObjectPosition }"
             />
             <AvatarFallback :class="fallbackClass">{{
                 getInitials(name)

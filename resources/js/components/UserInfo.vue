@@ -19,11 +19,22 @@ const { getInitials } = useInitials();
 const showAvatar = computed(
     () => props.user.avatar && props.user.avatar !== '',
 );
+const avatarObjectPosition = computed(() => {
+    const x = Number(props.user.avatar_position_x ?? 0);
+    const y = Number(props.user.avatar_position_y ?? 0);
+
+    return `${50 + x}% ${50 + y}%`;
+});
 </script>
 
 <template>
     <Avatar class="h-10 w-10 shrink-0 overflow-hidden rounded-lg">
-        <AvatarImage v-if="showAvatar" :src="user.avatar!" :alt="user.name" />
+        <AvatarImage
+            v-if="showAvatar"
+            :src="user.avatar!"
+            :alt="user.name"
+            :style="{ objectPosition: avatarObjectPosition }"
+        />
         <AvatarFallback class="rounded-lg text-black">
             {{ getInitials(user.name) }}
         </AvatarFallback>
