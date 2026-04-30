@@ -1,6 +1,6 @@
 # Workflow (backend y web)
 
-**Versión actual:** `0.3.0` (alineada con `composer.json`).
+**Versión actual:** `0.4.5` (alineada con `package.json` y `composer.json`).
 
 Workflow es la plataforma CFRD/UdeC para gestión de proyectos, tareas, validaciones y trazabilidad operativa. Este repositorio contiene:
 
@@ -35,13 +35,34 @@ Centralizar el ciclo operativo de proyectos:
 
 ### Web (Inertia) por contexto
 
-- **Dashboard**: resumen personalizado por rol.
-- **PMO**: tablero macro, cartera de proyectos, indicadores, gantt/kanban macro.
-- **Coordinación**: equipos y carga, backlog, validación de urgentes y skills.
-- **Proyecto**: tabla, cronograma, calendario, kanban, minutas.
+- **Dashboard**: resumen personalizado por rol con tarjetas accionables y buzón de actividad.
+- **PMO**: tablero macro, cartera de proyectos, indicadores, gantt/kanban macro, mapa de calor con alertas diarias/paralelas y resumen compacto.
+- **Coordinación**: equipos y carga (con filtros, modales de gestión y acciones), backlog, validación de urgentes y skills.
+- **Proyecto**: tabla, cronograma, calendario, kanban y minutas.
 - **Colaborador**: mis tareas y urgentes.
 - **Talento**: matriz de skills y mapa de relaciones.
-- **Sistema**: auditoría, notificaciones y estado de integración LRS.
+- **Sistema**: auditoría, notificaciones, configuración transversal, usuarios/roles, áreas y estado de integración LRS.
+
+### Capacidades recientes destacadas
+
+- **Gestión de Áreas (CRUD)**: creación/edición/eliminación de áreas, asignación de personas, coordinador a cargo por área y sincronización automática del coordinador como miembro.
+- **Kanban configurable**:
+  - estados transversales por defecto,
+  - estados por proyecto (crear/editar/eliminar),
+  - reordenamiento visual de columnas por drag & drop (proyecto y transversal),
+  - fallback automático a configuración transversal si el proyecto no define estados.
+- **Tablero macro**:
+  - formatos de fecha en estándar `dd-mm-yyyy`,
+  - mejoras de modal de proyecto (ancho ampliado + alto máximo controlado),
+  - ajustes de lista de tareas, Gantt interactivo y accesos rápidos.
+- **Mapa de carga**:
+  - alertas por sobrecarga diaria,
+  - alertas por proyectos en paralelo,
+  - umbrales configurables en configuración transversal.
+- **Versionado automático**:
+  - cada `npm run build` incrementa versión semántica,
+  - sincroniza `package.json` + `composer.json`,
+  - publica versión visible en el header de la app.
 
 ### API (`/api/v1`)
 
@@ -161,6 +182,7 @@ workflow/
 - `WORKFLOW_CFRD_DOMAIN`, `WORKFLOW_CFRD_DOMAINS`: dominios permitidos de correo.
 - `WORKFLOW_DEV_PASSWORD_EMAIL`: cuenta habilitada para login web por contraseña.
 - `WORKFLOW_LRS_ENABLED`, `WORKFLOW_LRS_ENDPOINT`, `WORKFLOW_LRS_KEY`: estado/config LRS.
+- Umbrales transversales de carga (incluyendo paralelismo): persistidos desde **Sistema > Configuración transversal**.
 - Configuración de broadcasting/reverb en `config/broadcasting.php` y `config/reverb.php`.
 
 ---
@@ -247,6 +269,8 @@ Frontend (navegador por Traefik/TLS):
 - `composer dev`: servidor + cola + logs + Vite en paralelo.
 - `composer test`: lint check + tests de Laravel.
 - `composer lint` / `composer lint:check`: estilo PHP con Pint.
+- `npm run build`: ejecuta versionado automático + build de assets.
+- `npm run build:ssr`: build web + SSR.
 
 ---
 
@@ -286,13 +310,25 @@ php artisan test
 
 ---
 
-## 12) Versionado y documentación relacionada
+## 12) Versionado automático (build-driven)
 
-- Política de versionado: [`../doc/project/VERSIONING.md`](../doc/project/VERSIONING.md)
-- Historial de cambios: [`../doc/project/CHANGELOG.md`](../doc/project/CHANGELOG.md)
-- Fuente de versión del paquete backend: `composer.json`
+El proyecto usa versionado semántico incremental automático en cada compilación:
 
-Al publicar cambios de producto, mantener sincronizados `CHANGELOG`, `versions.json`, `composer.json` y este README.
+- Script: `scripts/auto-version.mjs`.
+- Se ejecuta dentro de `npm run build`.
+- Actualiza de forma sincronizada:
+  - `package.json`
+  - `composer.json`
+  - `.build-version.json` (estado interno del último build).
+
+### Regla de incremento automático
+
+- **`minor`** cuando detecta commits nuevos con prefijo `feat:`.
+- **`patch`** en los demás casos.
+
+### Visualización
+
+- La versión activa se expone vía Inertia (`appVersion`) y se muestra en el header principal (`AppSidebarHeader`), esquina superior derecha.
 
 ---
 
@@ -341,3 +377,15 @@ Solucion:
 ```bash
 npm run build
 ```
+
+### El dashboard muestra métricas o accesos no esperados por rol
+
+Causa común:
+
+- Datos de alcance por rol desalineados con membresía de proyecto/área.
+
+Estado actual:
+
+- Coordinación: métricas y listas filtran por su universo de áreas/equipo.
+- Colaborador: contempla tareas como responsable y como colaborador adicional.
+- Jefatura: accesos del dashboard apuntan a rutas compatibles con sus permisos.
