@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use App\Support\WorkflowRealtime;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as SymfonyResponse;
@@ -20,16 +21,70 @@ use Inertia\Response;
 
 class PmoProyectosController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
+        $validated = $request->validate([
+            'q' => ['nullable', 'string', 'max:120'],
+            'status' => ['nullable', Rule::in(Project::STATUSES)],
+            'sort' => ['nullable', Rule::in(['name', 'status', 'carta_inicio_at', 'updated_at'])],
+            'dir' => ['nullable', Rule::in(['asc', 'desc'])],
+            'page' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $q = isset($validated['q']) ? trim((string) $validated['q']) : '';
+        $status = $validated['status'] ?? null;
+        $sort = $validated['sort'] ?? 'updated_at';
+        $dir = $validated['dir'] ?? 'desc';
+
         $projects = Project::query()
             ->with(['jefeProyecto:id,name,email', 'createdBy:id,name'])
-            ->orderByDesc('updated_at')
-            ->get();
+            ->withCount([
+                'tasks as tasks_total',
+                'tasks as tasks_abiertas' => fn (Builder $query) => $query->where('status', '!=', \App\Models\Task::STATUS_HECHA),
+                'members',
+            ])
+            ->when($q !== '', function (Builder $query) use ($q): void {
+                $query->where(function (Builder $inner) use ($q): void {
+                    $inner
+                        ->where('name', 'like', '%'.$q.'%')
+                        ->orWhere('code', 'like', '%'.$q.'%')
+                        ->orWhereHas('jefeProyecto', fn (Builder $jefe) => $jefe->where('name', 'like', '%'.$q.'%'));
+                });
+            })
+            ->when($status !== null && $status !== '', fn (Builder $query) => $query->where('status', $status))
+            ->orderBy($sort, $dir)
+            ->paginate(15)
+            ->withQueryString();
+        $projects->through(function (Project $project): array {
+            return [
+                'id' => $project->id,
+                'name' => $project->name,
+                'code' => $project->code,
+                'status' => $project->status,
+                'carta_inicio_at' => optional($project->carta_inicio_at)?->toDateString(),
+                'starts_at' => optional($project->starts_at)?->toDateString(),
+                'ends_at' => optional($project->ends_at)?->toDateString(),
+                'updated_at' => optional($project->updated_at)?->toDateTimeString(),
+                'tasks_total' => (int) ($project->tasks_total ?? 0),
+                'tasks_abiertas' => (int) ($project->tasks_abiertas ?? 0),
+                'members_count' => (int) ($project->members_count ?? 0),
+                'has_acta' => $project->acta_constitucion_path !== null && $project->acta_constitucion_path !== '',
+                'jefe_proyecto' => $project->jefeProyecto !== null
+                    ? ['name' => $project->jefeProyecto->name, 'email' => $project->jefeProyecto->email]
+                    : null,
+                'created_by' => $project->createdBy !== null ? ['name' => $project->createdBy->name] : null,
+            ];
+        });
 
         return Inertia::render('pmo/Proyectos', [
             'projects' => $projects,
             'statuses' => Project::STATUSES,
+            'filters' => [
+                'q' => $q,
+                'status' => $status,
+                'sort' => $sort,
+                'dir' => $dir,
+            ],
         ]);
     }
 
@@ -56,6 +111,8 @@ class PmoProyectosController extends Controller
             'ends_at' => 'nullable|date|after_or_equal:starts_at',
             'status' => 'required|string|in:'.implode(',', Project::STATUSES),
             'jefe_proyecto_id' => 'nullable|exists:users,id',
+            'member_ids' => 'nullable|array',
+            'member_ids.*' => 'integer|exists:users,id',
             'acta_constitucion' => 'nullable|file|mimes:pdf,doc,docx|max:15360',
         ]);
 
@@ -72,7 +129,19 @@ class PmoProyectosController extends Controller
 
         $validated['created_by_id'] = $request->user()->id;
 
+        $memberIds = collect((array) ($validated['member_ids'] ?? []))
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+        if (! empty($validated['jefe_proyecto_id'])) {
+            $memberIds->push((int) $validated['jefe_proyecto_id']);
+        }
+        $memberIds = $memberIds->unique()->values()->all();
+        unset($validated['member_ids']);
+
         $project = Project::query()->create($validated);
+        $project->members()->syncWithoutDetaching($memberIds);
 
         if ($actaFile instanceof UploadedFile) {
             $this->storeActaConstitucionFile($project, $actaFile);
@@ -108,13 +177,24 @@ class PmoProyectosController extends Controller
             'ends_at' => 'nullable|date',
             'status' => 'sometimes|required|string|in:'.implode(',', Project::STATUSES),
             'jefe_proyecto_id' => ['nullable', Rule::in($jefeIdsPermitidos)],
+            'member_ids' => 'nullable|array',
+            'member_ids.*' => 'integer|exists:users,id',
             'acta_constitucion' => 'nullable|file|mimes:pdf,doc,docx|max:15360',
             'remove_acta_constitucion' => 'sometimes|boolean',
         ]);
 
         $removeActa = $request->boolean('remove_acta_constitucion');
         $actaFile = $request->file('acta_constitucion');
-        unset($validated['acta_constitucion'], $validated['remove_acta_constitucion']);
+        $memberIds = collect((array) ($validated['member_ids'] ?? []))
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+        if (! empty($validated['jefe_proyecto_id'])) {
+            $memberIds->push((int) $validated['jefe_proyecto_id']);
+        }
+        $memberIds = $memberIds->unique()->values()->all();
+        unset($validated['member_ids'], $validated['acta_constitucion'], $validated['remove_acta_constitucion']);
 
         $this->assertProjectDateRange($project, $validated);
 
@@ -128,6 +208,7 @@ class PmoProyectosController extends Controller
 
         $dirty = $project->getDirty();
         $project->save();
+        $project->members()->sync($memberIds);
 
         if ($actaFile instanceof UploadedFile) {
             $this->storeActaConstitucionFile($project, $actaFile);

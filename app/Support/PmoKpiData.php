@@ -6,12 +6,25 @@ use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Métricas agregadas para KPI PMO (tablero macro e indicadores).
  */
 final class PmoKpiData
 {
+    private static function displayName(string $name): string
+    {
+        if (Str::contains($name, ' — ')) {
+            return (string) strstr($name, ' — ', true);
+        }
+        if (Str::contains($name, ' - ')) {
+            return (string) strstr($name, ' - ', true);
+        }
+
+        return $name;
+    }
+
     /**
      * @return array{
      *     usuarios_total: int,
@@ -50,7 +63,7 @@ final class PmoKpiData
 
         $tasksAbiertasPorResponsable = [];
         foreach ($openTasksByUser as $row) {
-            $label = $names[$row->assignee_id] ?? ('#'.$row->assignee_id);
+            $label = self::displayName((string) ($names[$row->assignee_id] ?? ('#'.$row->assignee_id)));
             $tasksAbiertasPorResponsable[$label] = (int) $row->c;
         }
 
@@ -110,7 +123,7 @@ final class PmoKpiData
 
         $tasksAbiertasPorResponsable = [];
         foreach ($openTasksByUser as $row) {
-            $label = $names[$row->assignee_id] ?? ('#'.$row->assignee_id);
+            $label = self::displayName((string) ($names[$row->assignee_id] ?? ('#'.$row->assignee_id)));
             $tasksAbiertasPorResponsable[$label] = (int) $row->c;
         }
 

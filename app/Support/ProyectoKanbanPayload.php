@@ -3,10 +3,12 @@
 namespace App\Support;
 
 use App\Models\Project;
+use App\Models\KanbanStatus;
 use App\Models\Task;
 use App\Models\TaskGroup;
 use App\Models\User;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Grupos/columnas Kanban y opciones de personas (Kanban proyecto y tablero macro).
@@ -48,10 +50,16 @@ final class ProyectoKanbanPayload
             ->orderBy('id')
             ->get();
 
-        return $taskGroups->map(function (TaskGroup $group) use ($tasks) {
+        $statusKeys = KanbanStatus::effectiveForProject($project)->pluck('key')->values()->all();
+        if ($statusKeys === []) {
+            $statusKeys = [Task::STATUS_PENDIENTE, Task::STATUS_EN_CURSO, Task::STATUS_REVISION];
+        }
+        $fullStatuses = array_merge([Task::STATUS_BACKLOG], $statusKeys, [Task::STATUS_HECHA]);
+
+        return $taskGroups->map(function (TaskGroup $group) use ($tasks, $fullStatuses) {
             $groupTasks = $tasks->where('task_group_id', $group->id);
             $columns = [];
-            foreach (Task::STATUSES as $status) {
+            foreach ($fullStatuses as $status) {
                 $columns[$status] = $groupTasks->where('status', $status)->values()->all();
             }
             $total = $groupTasks->count();
@@ -75,6 +83,50 @@ final class ProyectoKanbanPayload
     {
         return User::query()
             ->whereHas('roles', fn ($q) => $q->whereIn('name', ['admin', 'pmo', 'coordinador', 'jefe_proyecto', 'colaborador']))
+            ->orderBy('name')
+            ->get(['id', 'name', 'avatar']);
+    }
+
+    /**
+     * Personas disponibles en un proyecto:
+     * - miembros asignados al proyecto
+     * - jefe de proyecto
+     * - personas ya usadas en tareas del proyecto (responsable/colaborador)
+     *
+     * @return Collection<int, User>
+     */
+    public static function peopleOptionsForProject(Project $project): Collection
+    {
+        $memberIds = $project->members()->pluck('users.id');
+
+        $taskAssigneeIds = Task::query()
+            ->where('project_id', $project->id)
+            ->whereNotNull('assignee_id')
+            ->pluck('assignee_id');
+
+        $taskCollaboratorIds = DB::table('task_collaborators')
+            ->join('tasks', 'tasks.id', '=', 'task_collaborators.task_id')
+            ->where('tasks.project_id', $project->id)
+            ->pluck('task_collaborators.user_id');
+
+        $eligibleIds = $memberIds
+            ->merge($taskAssigneeIds)
+            ->merge($taskCollaboratorIds)
+            ->when(
+                $project->jefe_proyecto_id !== null,
+                fn (Collection $c) => $c->push((int) $project->jefe_proyecto_id),
+            )
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($eligibleIds->isEmpty()) {
+            return collect();
+        }
+
+        return User::query()
+            ->whereIn('id', $eligibleIds->all())
             ->orderBy('name')
             ->get(['id', 'name', 'avatar']);
     }

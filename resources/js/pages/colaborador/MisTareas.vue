@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
 import WorkflowSection from '@/components/workflow/WorkflowSection.vue';
+import { formatDateChile } from '@/lib/dateFormat';
 import { misTareas } from '@/routes/colaborador';
 import { dashboard } from '@/routes';
 
@@ -55,7 +56,7 @@ defineOptions({
                         <td class="px-4 py-2 font-medium">{{ t.title }}</td>
                         <td class="px-4 py-2 text-[#666]">{{ t.project.name }}</td>
                         <td class="px-4 py-2 capitalize">{{ t.status }}</td>
-                        <td class="px-4 py-2 text-[#666]">{{ t.due_date ?? '—' }}</td>
+                        <td class="px-4 py-2 text-[#666]">{{ formatDateChile(t.due_date) }}</td>
                         <td class="px-4 py-2">{{ t.is_urgent ? 'Sí' : 'No' }}</td>
                     </tr>
                     <tr v-if="tasks.length === 0">

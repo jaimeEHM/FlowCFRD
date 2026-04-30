@@ -34,6 +34,8 @@ const props = defineProps<{
     idSuffix?: string;
     /** Lista de toda la cartera (varios proyectos); oculta alta de segmento sin contexto único. */
     portfolioMode?: boolean;
+    /** Oculta columna editable de segmento para simplificar la vista. */
+    hideSegmentColumn?: boolean;
 }>();
 
 const suf = () => (props.idSuffix ? `-${props.idSuffix}` : '');
@@ -263,7 +265,7 @@ function toggleCollaborator(id: number) {
                             >
                                 <tr>
                                     <th class="px-3 py-2">Tarea</th>
-                                    <th class="px-3 py-2">Segmento</th>
+                                    <th v-if="!hideSegmentColumn" class="px-3 py-2">Segmento</th>
                                     <th class="px-3 py-2">Estado</th>
                                     <th class="px-3 py-2">Responsable</th>
                                     <th class="px-3 py-2">Colaboradores</th>
@@ -293,7 +295,7 @@ function toggleCollaborator(id: number) {
                                             "
                                         />
                                     </td>
-                                    <td class="px-3 py-2 align-middle">
+                                    <td v-if="!hideSegmentColumn" class="px-3 py-2 align-middle">
                                         <select
                                             class="h-8 max-w-[10rem] rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-800 focus:border-[#003366] focus:outline-none focus:ring-1 focus:ring-[#003366]"
                                             :value="t.task_group_id"
@@ -411,7 +413,7 @@ function toggleCollaborator(id: number) {
                                 </tr>
                                 <tr v-if="tasksForGroup(g.id).length === 0">
                                     <td
-                                        colspan="7"
+                                        :colspan="hideSegmentColumn ? 6 : 7"
                                         class="px-3 py-6 text-center text-sm text-slate-500"
                                     >
                                         {{

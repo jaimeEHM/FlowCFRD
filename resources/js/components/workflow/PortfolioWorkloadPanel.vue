@@ -9,8 +9,18 @@ import {
     Tooltip,
     type ChartData,
 } from 'chart.js';
+import { Eye } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { Bar } from 'vue-chartjs';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 ChartJS.register(
     CategoryScale,
@@ -23,7 +33,7 @@ ChartJS.register(
 
 export type WorkloadPayload = {
     mode: string;
-    people: { id: number; name: string; total: number; projects_count: number }[];
+    people: { id: number; name: string; total: number; projects_count: number; max_daily_load: number; max_parallel_projects: number }[];
     stacks: { label: string; sub?: string | null }[];
     matrix: number[][];
     heatmap_max: number;
@@ -35,7 +45,26 @@ export type WorkloadPayload = {
             backgroundColor: string;
         }[];
     };
-    summary: { people_count: number; tasks_open_assigned: number };
+    summary: { people_count: number; tasks_open_assigned: number; daily_alerts: number; parallel_alerts: number };
+    alerts: {
+        daily: {
+            user_id: number;
+            name: string;
+            peak_date: string;
+            max_daily_load: number;
+            capacity_per_day: number;
+            over_capacity_days: number;
+            severity: 'normal' | 'alerta' | 'peligro';
+        }[];
+        parallel: {
+            user_id: number;
+            name: string;
+            peak_date: string;
+            max_parallel_projects: number;
+            projects_at_peak: string[];
+            severity: 'normal' | 'alerta' | 'peligro';
+        }[];
+    };
 };
 
 const props = defineProps<{
@@ -53,6 +82,9 @@ const props = defineProps<{
 
 type WorkloadView = 'heatmap' | 'segments';
 const currentView = ref<WorkloadView>('heatmap');
+const personDetailOpen = ref(false);
+const selectedPersonId = ref<number | null>(null);
+const compactHeatmap = ref(false);
 
 const chartHeightPx = computed(() => {
     const n = props.workload.people.length;
@@ -75,6 +107,41 @@ const barChartData = computed<ChartData<'bar'>>(
             })),
         }) as ChartData<'bar'>,
 );
+
+const isPortfolioLarge = computed(() => props.portfolioScope && props.workload.stacks.length >= 12);
+
+if (isPortfolioLarge.value) {
+    compactHeatmap.value = true;
+}
+
+const selectedPerson = computed(() => props.workload.people.find((p) => p.id === selectedPersonId.value) ?? null);
+
+function topProjectsForPerson(personId: number): { label: string; sub: string | null; count: number }[] {
+    const personIndex = props.workload.people.findIndex((p) => p.id === personId);
+    if (personIndex < 0) {
+        return [];
+    }
+    const row = props.workload.matrix[personIndex] ?? [];
+    const out = row
+        .map((count, idx) => ({
+            label: props.workload.stacks[idx]?.label ?? `Segmento ${idx + 1}`,
+            sub: props.workload.stacks[idx]?.sub ?? null,
+            count,
+        }))
+        .filter((x) => x.count > 0)
+        .sort((a, b) => b.count - a.count);
+
+    return out.slice(0, 12);
+}
+
+const selectedPersonProjects = computed(() =>
+    selectedPerson.value !== null ? topProjectsForPerson(selectedPerson.value.id) : [],
+);
+
+function openPersonDetail(personId: number): void {
+    selectedPersonId.value = personId;
+    personDetailOpen.value = true;
+}
 
 const barOptions = {
     indexAxis: 'y' as const,
@@ -258,6 +325,54 @@ function rowCellStyle(totalTasks: number): Record<string, string> {
                         }}; el mapa de calor repite la misma matriz con intensidad.
                     </p>
                 </div>
+                <div
+                    class="rounded-lg border border-[#e69b0a]/30 bg-amber-50/80 px-4 py-3 text-center shadow-sm"
+                >
+                    <p class="text-[10px] font-semibold uppercase tracking-wide text-amber-950/80">
+                        Alertas diarias
+                    </p>
+                    <p class="mt-1 text-2xl font-bold tabular-nums text-amber-900">
+                        {{ workload.summary.daily_alerts }}
+                    </p>
+                </div>
+                <div
+                    class="rounded-lg border border-[#d21428]/30 bg-rose-50/80 px-4 py-3 text-center shadow-sm"
+                >
+                    <p class="text-[10px] font-semibold uppercase tracking-wide text-rose-950/80">
+                        Proyectos en paralelo
+                    </p>
+                    <p class="mt-1 text-2xl font-bold tabular-nums text-rose-900">
+                        {{ workload.summary.parallel_alerts }}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div
+            v-if="workload.alerts.daily.length > 0 || workload.alerts.parallel.length > 0"
+            class="rounded-xl border border-[#003366]/12 bg-white p-4 shadow-[0_1px_3px_rgba(0,51,102,0.08)]"
+        >
+            <p class="text-sm font-semibold text-[#003366]">Alertas operativas por fecha y asignación</p>
+            <p class="mt-1 text-xs text-slate-600">
+                Se calculan cruzando fechas de proyectos con tareas asignadas (responsable + colaboraciones ponderadas) para estimar carga diaria y solapamiento.
+            </p>
+            <div class="mt-3 grid gap-3 lg:grid-cols-2">
+                <div class="rounded-lg border border-[#e69b0a]/25 bg-amber-50/60 p-3">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-amber-900">Carga diaria estimada</p>
+                    <ul class="mt-2 space-y-1 text-xs text-amber-950">
+                        <li v-for="a in workload.alerts.daily.slice(0, 6)" :key="`daily-${a.user_id}`">
+                            <span class="font-semibold">{{ a.name }}</span> · {{ a.max_daily_load.toFixed(2) }}/{{ a.capacity_per_day }} tareas/día · pico {{ a.peak_date }}
+                        </li>
+                    </ul>
+                </div>
+                <div class="rounded-lg border border-[#d21428]/25 bg-rose-50/60 p-3">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-rose-900">Proyectos en paralelo</p>
+                    <ul class="mt-2 space-y-1 text-xs text-rose-950">
+                        <li v-for="a in workload.alerts.parallel.slice(0, 6)" :key="`parallel-${a.user_id}`">
+                            <span class="font-semibold">{{ a.name }}</span> · {{ a.max_parallel_projects }} proyectos simultáneos · pico {{ a.peak_date }}
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
 
@@ -352,6 +467,21 @@ function rowCellStyle(totalTasks: number): Record<string, string> {
                         celda. Útil para ver cuellos de botella y focos de
                         trabajo cruzado.
                     </p>
+                    <div
+                        v-if="isPortfolioLarge"
+                        class="mt-2 flex items-center justify-between gap-2"
+                    >
+                        <p class="text-[11px] text-slate-600">
+                            Cartera amplia detectada ({{ workload.stacks.length }} proyectos): se recomienda la vista resumida por persona.
+                        </p>
+                        <button
+                            type="button"
+                            class="rounded-md border border-[#003366]/20 bg-white px-2 py-1 text-[11px] font-semibold text-[#003366] hover:bg-[#003366]/5"
+                            @click="compactHeatmap = !compactHeatmap"
+                        >
+                            {{ compactHeatmap ? 'Ver matriz completa' : 'Ver vista resumida' }}
+                        </button>
+                    </div>
                 </div>
                 <div class="overflow-x-auto p-3">
                     <div class="mb-2 flex flex-wrap gap-2 text-[11px] text-slate-700">
@@ -360,6 +490,7 @@ function rowCellStyle(totalTasks: number): Record<string, string> {
                         <span class="rounded border border-[#d21428]/40 bg-[#d21428]/10 px-2 py-1">Sobrecarga ≥ {{ props.thresholds.overload_days }} días</span>
                     </div>
                     <table
+                        v-if="!compactHeatmap"
                         class="w-full min-w-[640px] border-collapse text-left text-xs"
                     >
                         <thead>
@@ -452,8 +583,108 @@ function rowCellStyle(totalTasks: number): Record<string, string> {
                             </tr>
                         </tbody>
                     </table>
+
+                    <table
+                        v-else
+                        class="w-full min-w-[760px] border-collapse text-left text-xs"
+                    >
+                        <thead>
+                            <tr class="border-b border-[#003366]/15">
+                                <th class="px-2 py-2 font-semibold text-[#003366]">Persona</th>
+                                <th class="px-2 py-2 text-center font-semibold text-[#003366]">Proy.</th>
+                                <th class="px-2 py-2 text-center font-semibold text-[#003366]">Total</th>
+                                <th class="px-2 py-2 text-center font-semibold text-[#003366]">Pico diario</th>
+                                <th class="px-2 py-2 text-center font-semibold text-[#003366]">Paralelos</th>
+                                <th class="px-2 py-2 text-center font-semibold text-[#003366]">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                v-for="p in workload.people"
+                                :key="`compact-${p.id}`"
+                                class="border-b border-[#003366]/8"
+                                :class="rowClass(p.total)"
+                            >
+                                <td class="px-2 py-1.5 font-medium text-[#1e293b]">{{ p.name }}</td>
+                                <td class="px-2 py-1.5 text-center font-semibold tabular-nums text-[#003366]">{{ p.projects_count }}</td>
+                                <td class="px-2 py-1.5 text-center font-semibold tabular-nums text-[#003366]">{{ p.total }}</td>
+                                <td class="px-2 py-1.5 text-center tabular-nums text-slate-700">{{ p.max_daily_load.toFixed(2) }}</td>
+                                <td class="px-2 py-1.5 text-center tabular-nums text-slate-700">{{ p.max_parallel_projects }}</td>
+                                <td class="px-2 py-1.5 text-center">
+                                    <button
+                                        type="button"
+                                        class="inline-flex items-center justify-center rounded-md border border-[#003366]/25 p-1.5 text-[#003366] transition hover:bg-[#003366]/8"
+                                        title="Ver resumen de proyectos por persona"
+                                        @click="openPersonDetail(p.id)"
+                                    >
+                                        <Eye class="h-4 w-4" />
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </template>
+
+        <Dialog v-model:open="personDetailOpen">
+            <DialogContent class="sm:max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>Resumen por persona</DialogTitle>
+                    <DialogDescription>
+                        {{ selectedPerson ? `Detalle de proyectos para ${selectedPerson.name}.` : 'Selecciona una persona.' }}
+                    </DialogDescription>
+                </DialogHeader>
+                <div class="space-y-3">
+                    <div
+                        v-if="selectedPerson"
+                        class="grid grid-cols-3 gap-2 rounded-md border border-[#003366]/10 bg-[#f8fafc] p-3 text-xs"
+                    >
+                        <div>
+                            <p class="text-slate-500">Total tareas</p>
+                            <p class="font-semibold text-[#003366]">{{ selectedPerson.total }}</p>
+                        </div>
+                        <div>
+                            <p class="text-slate-500">Proyectos</p>
+                            <p class="font-semibold text-[#003366]">{{ selectedPerson.projects_count }}</p>
+                        </div>
+                        <div>
+                            <p class="text-slate-500">Pico diario</p>
+                            <p class="font-semibold text-[#003366]">{{ selectedPerson.max_daily_load.toFixed(2) }}</p>
+                        </div>
+                    </div>
+                    <div class="max-h-72 overflow-y-auto rounded-md border border-[#003366]/10">
+                        <table class="w-full text-left text-xs">
+                            <thead class="sticky top-0 bg-[#f1f5f9]">
+                                <tr class="border-b border-[#003366]/10 text-[#003366]">
+                                    <th class="px-3 py-2">Proyecto</th>
+                                    <th class="px-3 py-2">Código</th>
+                                    <th class="px-3 py-2 text-right">Carga</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr
+                                    v-for="item in selectedPersonProjects"
+                                    :key="`${item.label}-${item.sub}`"
+                                    class="border-b border-[#003366]/8"
+                                >
+                                    <td class="px-3 py-2">{{ item.label }}</td>
+                                    <td class="px-3 py-2 font-mono text-[11px] text-slate-600">{{ item.sub ?? '—' }}</td>
+                                    <td class="px-3 py-2 text-right font-semibold tabular-nums text-[#003366]">{{ item.count }}</td>
+                                </tr>
+                                <tr v-if="selectedPersonProjects.length === 0">
+                                    <td colspan="3" class="px-3 py-5 text-center text-slate-500">
+                                        Sin carga distribuida por proyecto para esta persona.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" @click="personDetailOpen = false">Cerrar</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </div>
 </template>

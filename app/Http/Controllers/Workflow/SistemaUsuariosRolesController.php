@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Workflow;
 
 use App\Http\Controllers\Controller;
+use App\Models\Area;
 use App\Models\User;
 use App\Services\AuditLogger;
 use Database\Seeders\RoleSeeder;
@@ -16,9 +17,10 @@ class SistemaUsuariosRolesController extends Controller
 {
     public function __invoke(Request $request): Response
     {
-        abort_unless($request->user()?->hasRole(['admin', 'pmo']), 403);
+        abort_unless($request->user()?->hasRole(['admin', 'pmo', 'coordinador']), 403);
 
         $users = User::query()
+            ->with('areas:id,name')
             ->orderBy('name')
             ->get(['id', 'name', 'cargo', 'email', 'created_at'])
             ->map(fn (User $u) => [
@@ -27,6 +29,7 @@ class SistemaUsuariosRolesController extends Controller
                 'cargo' => $u->cargo,
                 'email' => $u->email,
                 'roles' => $u->getRoleNames()->values()->all(),
+                'areas' => $u->areas->pluck('name')->values()->all(),
                 'created_at' => optional($u->created_at)?->toDateString(),
             ])
             ->values()
@@ -35,12 +38,13 @@ class SistemaUsuariosRolesController extends Controller
         return Inertia::render('sistema/UsuariosRoles', [
             'users' => $users,
             'available_roles' => RoleSeeder::ROLE_NAMES,
+            'available_areas' => Area::query()->where('is_active', true)->orderBy('name')->pluck('name')->values()->all(),
         ]);
     }
 
     public function update(Request $request, User $user, AuditLogger $auditLogger): RedirectResponse
     {
-        abort_unless($request->user()?->hasRole(['admin', 'pmo']), 403);
+        abort_unless($request->user()?->hasRole(['admin', 'pmo', 'coordinador']), 403);
 
         $validated = $request->validate([
             'roles' => ['required', 'array', 'min:1'],

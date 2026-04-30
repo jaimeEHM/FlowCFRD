@@ -10,6 +10,7 @@ import {
     Table2,
 } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
+import { formatDateChile } from '@/lib/dateFormat';
 import {
     calendario,
     cronograma,
@@ -136,14 +137,14 @@ function progressPercent(): number {
                     <div class="flex justify-between gap-2">
                         <dt class="text-slate-600">Inicio / fin</dt>
                         <dd class="tabular-nums text-slate-800">
-                            {{ project.starts_at ?? '—' }} →
-                            {{ project.ends_at ?? '—' }}
+                            {{ formatDateChile(project.starts_at) }} →
+                            {{ formatDateChile(project.ends_at) }}
                         </dd>
                     </div>
                     <div class="flex justify-between gap-2">
                         <dt class="text-slate-600">Carta inicio</dt>
                         <dd class="tabular-nums text-slate-800">
-                            {{ project.carta_inicio_at ?? '—' }}
+                            {{ formatDateChile(project.carta_inicio_at) }}
                         </dd>
                     </div>
                 </dl>

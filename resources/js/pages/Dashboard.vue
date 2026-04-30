@@ -3,6 +3,7 @@ import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, ref } from 'vue';
 import { Bell, LayoutGrid, Sparkles } from 'lucide-vue-next';
 import { getWorkflowNavGroupsForUser } from '@/config/workflowNavigation';
+import { formatDateTimeChile } from '@/lib/dateFormat';
 import { getRecentProjects, type RecentProject } from '@/lib/recentProjects';
 import { dashboard } from '@/routes';
 import { kanban } from '@/routes/proyecto';
@@ -68,19 +69,7 @@ onMounted(() => {
 });
 
 function formatFeedDate(iso: string | null): string {
-    if (!iso) {
-        return '';
-    }
-    try {
-        return new Date(iso).toLocaleString('es-ES', {
-            day: '2-digit',
-            month: 'short',
-            hour: '2-digit',
-            minute: '2-digit',
-        });
-    } catch {
-        return iso;
-    }
+    return formatDateTimeChile(iso);
 }
 
 function metricCardClass(tone: Metric['tone']): string {

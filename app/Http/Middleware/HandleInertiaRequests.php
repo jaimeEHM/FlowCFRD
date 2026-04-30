@@ -46,6 +46,9 @@ class HandleInertiaRequests extends Middleware
         }
 
         $user = $request->user();
+        if ($user !== null) {
+            $user->loadMissing('areas:id,name');
+        }
 
         return [
             ...parent::share($request),

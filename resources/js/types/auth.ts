@@ -10,6 +10,7 @@ export type User = {
     updated_at: string;
     /** Slugs de roles Spatie (p. ej. admin, pmo, colaborador). */
     role_slugs?: string[];
+    areas?: { id: number; name: string }[];
     [key: string]: unknown;
 };
 

@@ -43,10 +43,7 @@ final class ProyectoTaskListPayload
             ->orderBy('id')
             ->get();
 
-        $peopleOptions = User::query()
-            ->whereHas('roles', fn ($q) => $q->whereIn('name', ['admin', 'pmo', 'coordinador', 'jefe_proyecto', 'colaborador']))
-            ->orderBy('name')
-            ->get(['id', 'name', 'avatar']);
+        $peopleOptions = ProyectoKanbanPayload::peopleOptionsForProject($project);
 
         $taskGroups = $visibleGroups->map(function (TaskGroup $group) use ($tasks, $project) {
             $groupTasks = $tasks->where('task_group_id', $group->id);
@@ -154,13 +151,17 @@ final class ProyectoTaskListPayload
                 fn (TaskGroup $group) => $transversalEnabled || $group->name !== $transversalName
             );
             foreach ($groups as $group) {
+                $displayName = $group->name === 'General'
+                    ? $project->name
+                    : $project->name.' — '.$group->name;
+
                 $groupTasks = $tasks->where('task_group_id', $group->id);
                 $total = $groupTasks->count();
                 $hechas = $groupTasks->where('status', Task::STATUS_HECHA)->count();
 
                 $taskGroups[] = [
                     'id' => $group->id,
-                    'name' => $project->name.' — '.$group->name,
+                    'name' => $displayName,
                     'color' => $group->color,
                     'position' => $position++,
                     'progress_percent' => $total > 0 ? (int) round(($hechas / $total) * 100) : 0,

@@ -33,11 +33,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { formatDateChile } from '@/lib/dateFormat';
 import { update as patchProyecto, store as postProyecto } from '@/routes/pmo/proyectos';
+import { store as postTarea } from '@/routes/proyecto/tareas';
 import { dashboard } from '@/routes';
 import { tableroMacro } from '@/routes/pmo';
 
 type JefeOption = { id: number; name: string };
+type MemberOption = { id: number; name: string };
 
 type Project = {
     id: number;
@@ -49,6 +52,7 @@ type Project = {
     starts_at: string | null;
     ends_at: string | null;
     jefe_proyecto: { id: number; name: string } | null;
+    member_ids: number[];
     acta_constitucion: {
         download_url: string;
         original_name: string | null;
@@ -86,6 +90,11 @@ type GanttRow = {
     task_title: string;
 };
 
+type GanttTaskGroupOption = {
+    id: number;
+    name: string;
+};
+
 const props = defineProps<{
     activeSegment: Segment;
     projects: Project[];
@@ -95,6 +104,7 @@ const props = defineProps<{
     selectedProject: Project | null;
     statuses: string[];
     jefeOptions: JefeOption[];
+    memberOptions: MemberOption[];
     ganttProjects: GanttRow[];
     visibleTabSegments: {
         kpi: boolean;
@@ -119,6 +129,7 @@ const props = defineProps<{
         danger_days: number;
         overload_days: number;
     };
+    ganttTaskGroupsByProject: Record<number, GanttTaskGroupOption[]>;
     calendar: {
         view: CalendarView;
         date: string;
@@ -204,6 +215,14 @@ const sortKey = ref<TableSortKey>('name_asc');
 const ganttRef = ref<InstanceType<typeof ProjectGanttChart> | null>(null);
 const ganttViewMode = ref<GanttViewMode>('Week');
 const ganttSelectedStatuses = ref<string[]>([]);
+const ganttTaskModalOpen = ref(false);
+const quickGanttTaskOpen = ref(false);
+const selectedGanttTask = ref<GanttRow | null>(null);
+const quickTaskForm = useForm({
+    project_id: '' as string,
+    task_group_id: '' as string,
+    title: '',
+});
 const ganttViewModeLabel: Record<GanttViewMode, string> = {
     Day: 'Día',
     Week: 'Semana',
@@ -309,6 +328,7 @@ const detailForm = useForm({
     ends_at: '',
     status: 'borrador',
     jefe_proyecto_id: '' as string,
+    member_ids: [] as number[],
     acta_constitucion: null as File | null,
     remove_acta_constitucion: false,
 });
@@ -322,6 +342,7 @@ const createForm = useForm({
     ends_at: '',
     status: props.statuses[0] ?? 'borrador',
     jefe_proyecto_id: '' as string,
+    member_ids: [] as number[],
     acta_constitucion: null as File | null,
 });
 
@@ -431,6 +452,78 @@ function goGanttToday(): void {
     ganttRef.value?.scrollToToday();
 }
 
+function onGanttTaskClick(payload: {
+    id: number;
+    project_id?: number;
+}): void {
+    const row = props.ganttProjects.find((task) => task.id === payload.id);
+    if (!row) {
+        return;
+    }
+    selectedGanttTask.value = row;
+    ganttTaskModalOpen.value = true;
+}
+
+function goToKanbanTask(task: GanttRow): void {
+    router.get('/proyecto/kanban', {
+        project_id: task.project_id,
+        focus_task_id: task.id,
+    });
+}
+
+function openQuickTaskModal(projectId?: number): void {
+    quickTaskForm.reset();
+    quickTaskForm.clearErrors();
+
+    const resolvedProjectId =
+        projectId ??
+        props.selectedProjectId ??
+        props.projects[0]?.id ??
+        null;
+
+    quickTaskForm.project_id = resolvedProjectId !== null ? String(resolvedProjectId) : '';
+    const options = quickTaskGroupOptions.value;
+    quickTaskForm.task_group_id = options[0] ? String(options[0].id) : '';
+
+    quickGanttTaskOpen.value = true;
+}
+
+const quickTaskGroupOptions = computed<GanttTaskGroupOption[]>(() => {
+    const pid = Number(quickTaskForm.project_id);
+    if (!Number.isFinite(pid) || pid <= 0) {
+        return [];
+    }
+    return props.ganttTaskGroupsByProject[pid] ?? [];
+});
+
+watch(
+    () => quickTaskForm.project_id,
+    () => {
+        const options = quickTaskGroupOptions.value;
+        if (!options.some((g) => String(g.id) === quickTaskForm.task_group_id)) {
+            quickTaskForm.task_group_id = options[0] ? String(options[0].id) : '';
+        }
+    },
+);
+
+function submitQuickGanttTask(): void {
+    if (!quickTaskForm.project_id || !quickTaskForm.task_group_id || !quickTaskForm.title.trim()) {
+        return;
+    }
+
+    quickTaskForm.transform((data) => ({
+        project_id: Number(data.project_id),
+        task_group_id: Number(data.task_group_id),
+        title: data.title.trim(),
+    })).post(postTarea.url(), {
+        preserveScroll: true,
+        onSuccess: () => {
+            quickGanttTaskOpen.value = false;
+            quickTaskForm.reset();
+        },
+    });
+}
+
 function openProjectDetail(p: Project): void {
     if (!props.canEditCarteraFull) {
         return;
@@ -445,6 +538,7 @@ function openProjectDetail(p: Project): void {
     detailForm.status = p.status;
     detailForm.jefe_proyecto_id =
         p.jefe_proyecto !== null ? String(p.jefe_proyecto.id) : '';
+    detailForm.member_ids = [...(p.member_ids ?? [])];
     detailForm.acta_constitucion = null;
     detailForm.remove_acta_constitucion = false;
     detailForm.clearErrors();
@@ -470,6 +564,7 @@ function submitProjectDetail(): void {
 function openCreateModal(): void {
     createForm.reset();
     createForm.status = props.statuses[0] ?? 'borrador';
+    createForm.member_ids = [];
     createForm.acta_constitucion = null;
     createForm.clearErrors();
     createFileInputKey.value += 1;
@@ -497,6 +592,17 @@ function submitCreate(): void {
             createOpen.value = false;
         },
     });
+}
+
+function toggleMemberSelection(target: 'detail' | 'create', userId: number, checked: boolean): void {
+    const form = target === 'detail' ? detailForm : createForm;
+    const current = new Set(form.member_ids);
+    if (checked) {
+        current.add(userId);
+    } else {
+        current.delete(userId);
+    }
+    form.member_ids = Array.from(current);
 }
 
 const inertiaPage = usePage();
@@ -833,13 +939,13 @@ defineOptions({
                             </div>
                         </td>
                         <td class="px-3 py-2.5 align-middle tabular-nums text-xs">
-                            {{ p.starts_at ?? '—' }}
+                            {{ formatDateChile(p.starts_at) }}
                         </td>
                         <td class="px-3 py-2.5 align-middle tabular-nums text-xs">
-                            {{ p.ends_at ?? '—' }}
+                            {{ formatDateChile(p.ends_at) }}
                         </td>
                         <td class="px-3 py-2.5 align-middle tabular-nums text-xs">
-                            {{ p.carta_inicio_at ?? '—' }}
+                            {{ formatDateChile(p.carta_inicio_at) }}
                         </td>
                         <td class="px-3 py-2.5 align-middle text-slate-700">
                             {{ p.jefe_proyecto?.name ?? '—' }}
@@ -1091,6 +1197,9 @@ defineOptions({
                             <Button variant="outline" size="sm" class="h-8" @click="goGanttToday">
                                 Hoy
                             </Button>
+                            <Button variant="outline" size="sm" class="h-8" @click="openQuickTaskModal()">
+                                Nueva tarea
+                            </Button>
                         </div>
                         <div class="text-xs text-slate-600">
                             Vista Gantt de planificación
@@ -1157,6 +1266,7 @@ defineOptions({
                     ref="ganttRef"
                     :projects="filteredGanttProjects"
                     :view-mode="ganttViewMode"
+                    @task-click="onGanttTaskClick"
                 />
             </div>
         </div>
@@ -1309,6 +1419,7 @@ defineOptions({
                     <ProyectoTaskListPanel
                         id-suffix="macro-cartera"
                         portfolio-mode
+                        hide-segment-column
                         :project="{
                             id: 0,
                             name: 'Cartera completa',
@@ -1341,6 +1452,7 @@ defineOptions({
                 <div class="border-t border-[#003366]/8 p-4">
                     <ProyectoTaskListPanel
                         id-suffix="macro"
+                        hide-segment-column
                         :project="{
                             id: props.selectedProject!.id,
                             name: props.selectedProject!.name,
@@ -1473,9 +1585,110 @@ defineOptions({
             <Plus class="h-7 w-7" aria-hidden="true" />
         </button>
 
+        <Dialog v-model:open="ganttTaskModalOpen">
+            <DialogContent class="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Tarea en cronograma</DialogTitle>
+                    <DialogDescription>
+                        Acción rápida desde el Gantt para abrir o continuar trabajo.
+                    </DialogDescription>
+                </DialogHeader>
+                <div v-if="selectedGanttTask" class="space-y-3 text-sm">
+                    <div class="rounded-md border border-[#003366]/12 bg-[#f8fafc] p-3">
+                        <p class="font-semibold text-[#003366]">{{ selectedGanttTask.task_title }}</p>
+                        <p class="text-xs text-slate-600">
+                            {{ selectedGanttTask.project_name }} · Estado: {{ ganttStatusLabels[selectedGanttTask.status] ?? selectedGanttTask.status }}
+                        </p>
+                    </div>
+                    <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <Button type="button" class="bg-[#003366] hover:bg-[#00264d]" @click="goToKanbanTask(selectedGanttTask)">
+                            Ir a la tarea
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            @click="router.get(tableroMacro.url({ query: { segment: 'lista', project_id: selectedGanttTask.project_id } }))"
+                        >
+                            Ver lista del proyecto
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            class="sm:col-span-2"
+                            @click="
+                                ganttTaskModalOpen = false;
+                                openQuickTaskModal(selectedGanttTask.project_id);
+                            "
+                        >
+                            Crear nueva tarea en este proyecto
+                        </Button>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog v-model:open="quickGanttTaskOpen">
+            <DialogContent class="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Nueva tarea desde Gantt</DialogTitle>
+                    <DialogDescription>
+                        Crea una tarea rápida sin salir del cronograma.
+                    </DialogDescription>
+                </DialogHeader>
+                <div class="space-y-3">
+                    <div class="space-y-1">
+                        <Label for="gantt-project">Proyecto</Label>
+                        <select
+                            id="gantt-project"
+                            v-model="quickTaskForm.project_id"
+                            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
+                        >
+                            <option disabled value="">Selecciona un proyecto</option>
+                            <option v-for="p in props.projects" :key="p.id" :value="String(p.id)">
+                                {{ p.name }}
+                            </option>
+                        </select>
+                    </div>
+                    <div class="space-y-1">
+                        <Label for="gantt-group">Segmento</Label>
+                        <select
+                            id="gantt-group"
+                            v-model="quickTaskForm.task_group_id"
+                            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
+                        >
+                            <option disabled value="">Selecciona un segmento</option>
+                            <option v-for="g in quickTaskGroupOptions" :key="g.id" :value="String(g.id)">
+                                {{ g.name }}
+                            </option>
+                        </select>
+                    </div>
+                    <div class="space-y-1">
+                        <Label for="gantt-title">Título de tarea</Label>
+                        <Input id="gantt-title" v-model="quickTaskForm.title" maxlength="255" placeholder="Ej: Preparar reunión de avance" />
+                    </div>
+                    <p class="text-xs text-slate-600">
+                        La tarea se crea en backlog y quedará disponible de inmediato en Kanban, Lista y Gantt.
+                    </p>
+                </div>
+                <DialogFooter>
+                    <Button type="button" variant="secondary" @click="quickGanttTaskOpen = false">
+                        Cancelar
+                    </Button>
+                    <Button
+                        type="button"
+                        class="bg-[#003366] hover:bg-[#00264d]"
+                        :disabled="quickTaskForm.processing || !quickTaskForm.project_id || !quickTaskForm.task_group_id || !quickTaskForm.title.trim()"
+                        @click="submitQuickGanttTask"
+                    >
+                        Crear tarea
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
         <Dialog v-model:open="detailOpen">
             <DialogContent
-                class="flex max-h-[min(72vh,520px)] w-[min(96vw,56rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl"
+                class="flex max-h-[85vh] w-[min(98vw,88rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[88rem]"
             >
                 <DialogHeader class="shrink-0 space-y-1 border-b border-[#003366]/10 px-6 pb-3 pt-6 text-left">
                     <DialogTitle class="text-[#003366]">Proyecto</DialogTitle>
@@ -1694,6 +1907,31 @@ defineOptions({
                                     "
                                 />
                             </div>
+                            <div class="space-y-1">
+                                <Label>Equipo asignado al proyecto</Label>
+                                <div class="max-h-44 space-y-1 overflow-y-auto rounded-md border border-input p-2">
+                                    <label
+                                        v-for="u in props.memberOptions"
+                                        :key="`d-member-${u.id}`"
+                                        class="flex items-center gap-2 text-xs text-slate-700"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            class="rounded border-input"
+                                            :checked="detailForm.member_ids.includes(u.id)"
+                                            @change="
+                                                toggleMemberSelection(
+                                                    'detail',
+                                                    u.id,
+                                                    ($event.target as HTMLInputElement).checked,
+                                                )
+                                            "
+                                        />
+                                        <span>{{ u.name }}</span>
+                                    </label>
+                                </div>
+                                <InputError :message="detailForm.errors.member_ids" />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1721,7 +1959,7 @@ defineOptions({
 
         <Dialog v-model:open="createOpen">
             <DialogContent
-                class="flex max-h-[min(72vh,520px)] w-[min(96vw,56rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl"
+                class="flex max-h-[85vh] w-[min(98vw,88rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[88rem]"
             >
                 <DialogHeader class="shrink-0 space-y-1 border-b border-[#003366]/10 px-6 pb-3 pt-6 text-left">
                     <DialogTitle class="text-[#003366]">Nuevo proyecto</DialogTitle>
@@ -1870,6 +2108,31 @@ defineOptions({
                                         createForm.errors.jefe_proyecto_id
                                     "
                                 />
+                            </div>
+                            <div class="space-y-1">
+                                <Label>Equipo asignado al proyecto</Label>
+                                <div class="max-h-44 space-y-1 overflow-y-auto rounded-md border border-input p-2">
+                                    <label
+                                        v-for="u in props.memberOptions"
+                                        :key="`c-member-${u.id}`"
+                                        class="flex items-center gap-2 text-xs text-slate-700"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            class="rounded border-input"
+                                            :checked="createForm.member_ids.includes(u.id)"
+                                            @change="
+                                                toggleMemberSelection(
+                                                    'create',
+                                                    u.id,
+                                                    ($event.target as HTMLInputElement).checked,
+                                                )
+                                            "
+                                        />
+                                        <span>{{ u.name }}</span>
+                                    </label>
+                                </div>
+                                <InputError :message="createForm.errors.member_ids" />
                             </div>
                         </div>
                     </div>

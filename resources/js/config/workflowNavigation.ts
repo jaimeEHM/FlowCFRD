@@ -8,6 +8,7 @@ import {
     FolderKanban,
     Gauge,
     LayoutGrid,
+    Layers,
     ListChecks,
     Network,
     ShieldCheck,
@@ -149,6 +150,7 @@ export function getWorkflowNavGroups(): WorkflowNavGroup[] {
             items: [
                 navItem('Auditoría', '/sistema/auditoria', ShieldCheck, ['pmo']),
                 navItem('Usuarios y roles', '/sistema/usuarios-roles', Users, ['pmo']),
+                navItem('Áreas', '/sistema/areas', Layers, ['pmo', 'coordinador']),
                 navItem('Config. transversal', '/sistema/configuracion-transversal', Wrench, ['pmo']),
                 navItem('Notificaciones', '/sistema/notificaciones', Bell, [
                     'pmo',

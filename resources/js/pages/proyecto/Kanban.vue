@@ -27,12 +27,20 @@ type GroupPayload = {
 };
 
 type Proj = { id: number; name: string; code: string | null };
+type StatusOption = {
+    id: number | null;
+    key: string;
+    label: string;
+    is_system: boolean;
+    is_transversal: boolean;
+};
 
 const props = defineProps<{
     project: Proj | null;
     projects: Proj[];
     groups?: GroupPayload[] | null;
     statuses?: string[] | null;
+    statusOptions?: StatusOption[] | null;
     peopleOptions: Person[];
     focusedTaskId?: number | null;
 }>();
@@ -107,6 +115,7 @@ defineOptions({
                 :project="project"
                 :groups="groups"
                 :statuses="statuses"
+                :status-options="statusOptions ?? []"
                 :people-options="peopleOptions"
                 :focused-task-id="focusedTaskId ?? null"
                 :portfolio-mode="false"

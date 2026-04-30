@@ -89,6 +89,16 @@ class User extends Authenticatable
         return $this->belongsToMany(Skill::class)->withPivot('level');
     }
 
+    public function areas(): BelongsToMany
+    {
+        return $this->belongsToMany(Area::class)->withTimestamps();
+    }
+
+    public function coordinatedAreas(): HasMany
+    {
+        return $this->hasMany(Area::class, 'coordinator_user_id');
+    }
+
     /**
      * Busca usuario por correo o por el mismo local-part en dominios CFRD/UdeC configurados.
      */

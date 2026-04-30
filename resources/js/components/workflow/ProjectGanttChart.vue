@@ -17,6 +17,9 @@ export type GanttProjectRow = {
     starts_at: string | null;
     ends_at: string | null;
     status?: string;
+    project_id?: number;
+    project_name?: string;
+    task_title?: string;
 };
 
 type GanttViewMode = 'Day' | 'Week' | 'Month' | 'Year';
@@ -36,6 +39,20 @@ const props = withDefaults(
             'No hay tareas con fechas derivables (fecha límite o alta). Añade tareas o define fecha límite para ver barras.',
     },
 );
+
+const emit = defineEmits<{
+    taskClick: [
+        {
+            id: number;
+            name: string;
+            start: string;
+            end: string;
+            project_id?: number;
+            project_name?: string;
+            task_title?: string;
+        },
+    ];
+}>();
 
 const host = ref<HTMLDivElement | null>(null);
 let chart: InstanceType<typeof Gantt> | null = null;
@@ -153,6 +170,32 @@ function mountGantt(): void {
                 language: 'en',
                 scroll_to: 'today',
                 today_button: false,
+                on_click: (task: {
+                    id: string;
+                    name: string;
+                    start: string;
+                    end: string;
+                }) => {
+                    const [prefix, idRaw] = String(task.id).split('-');
+                    const id = Number(idRaw ?? 0);
+                    const source = props.projects.find(
+                        (row) => `${props.rowIdPrefix}-${row.id}` === task.id,
+                    );
+
+                    if (prefix !== props.rowIdPrefix || Number.isNaN(id) || id <= 0) {
+                        return;
+                    }
+
+                    emit('taskClick', {
+                        id,
+                        name: task.name,
+                        start: task.start,
+                        end: task.end,
+                        project_id: source?.project_id,
+                        project_name: source?.project_name,
+                        task_title: source?.task_title,
+                    });
+                },
             }),
     );
     stripGanttBarAnimations(host.value);

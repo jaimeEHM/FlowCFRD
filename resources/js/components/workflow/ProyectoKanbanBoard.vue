@@ -38,11 +38,20 @@ type GroupPayload = {
     progress_percent: number;
 };
 
+type StatusOption = {
+    id: number | null;
+    key: string;
+    label: string;
+    is_system: boolean;
+    is_transversal: boolean;
+};
+
 const props = defineProps<{
     project: { id: number; name: string; code: string | null };
     /** Puede faltar en recargas parciales Inertia; se normaliza en el watch. */
     groups?: GroupPayload[] | null;
     statuses?: string[] | null;
+    statusOptions?: StatusOption[] | null;
     peopleOptions: Person[];
     /** Tablero macro cartera: sin alta de segmento global. */
     portfolioMode?: boolean;
@@ -62,15 +71,34 @@ const DEFAULT_STATUSES: string[] = [
     'hecha',
 ];
 
+const statusOptionsList = computed<StatusOption[]>(() => {
+    if (Array.isArray(props.statusOptions) && props.statusOptions.length > 0) {
+        return props.statusOptions;
+    }
+    return DEFAULT_STATUSES.map((key) => ({
+        id: null,
+        key,
+        label: key.replace(/_/g, ' '),
+        is_system: key === 'backlog' || key === 'hecha',
+        is_transversal: false,
+    }));
+});
+const draggableCustomStatuses = ref<StatusOption[]>([]);
+
 function resolveStatuses(): string[] {
-    const raw =
-        props.statuses && props.statuses.length > 0
-            ? props.statuses
-            : DEFAULT_STATUSES;
+    const groupDerived = (Array.isArray(props.groups) ? props.groups : [])
+        .flatMap((g) => Object.keys(g.columns ?? {}));
+    const optionsDerived = statusOptionsList.value.map((s) => s.key);
+    const raw = Array.from(new Set([
+        ...groupDerived,
+        ...optionsDerived,
+        ...(props.statuses && props.statuses.length > 0 ? props.statuses : []),
+    ]));
+
     const filtered = raw.filter(
         (s): s is string => typeof s === 'string' && s !== '',
     );
-    return filtered.length > 0 ? filtered : DEFAULT_STATUSES;
+    return filtered.length > 0 ? filtered : [...DEFAULT_STATUSES];
 }
 
 function normalizeGroup(
@@ -131,6 +159,14 @@ watch(
                     statuses,
                 ),
             );
+    },
+    { immediate: true, deep: true },
+);
+
+watch(
+    statusOptionsList,
+    (list) => {
+        draggableCustomStatuses.value = list.filter((s) => !s.is_system).map((s) => ({ ...s }));
     },
     { immediate: true, deep: true },
 );
@@ -222,7 +258,16 @@ const columnLabels: Record<string, string> = {
     hecha: 'Hecha',
 };
 
+const columnLabelByKey = computed<Record<string, string>>(() => {
+    const map: Record<string, string> = { ...columnLabels };
+    statusOptionsList.value.forEach((s) => {
+        map[s.key] = s.label;
+    });
+    return map;
+});
+
 const newSegmentName = ref('');
+const newStatusLabel = ref('');
 const newTaskTitles = ref<Record<number, string>>({});
 
 function submitSegment() {
@@ -251,12 +296,18 @@ function submitQuickTask(groupId: number) {
 }
 
 const dialogOpen = ref(false);
+const statusDialogOpen = ref(false);
+const editingStatus = ref<StatusOption | null>(null);
 const editing = ref<Ttask | null>(null);
 const editForm = useForm({
     title: '',
     description: '',
     assignee_id: null as number | null,
     collaborator_ids: [] as number[],
+});
+
+const statusForm = useForm({
+    label: '',
 });
 
 function isFocusedTask(taskId: number): boolean {
@@ -309,6 +360,55 @@ function toggleCollaborator(id: number) {
         );
     }
 }
+
+function submitStatusCreate(): void {
+    const label = newStatusLabel.value.trim();
+    if (!label) {
+        return;
+    }
+    router.post('/proyecto/kanban/estados', {
+        project_id: props.project.id,
+        label,
+    });
+    newStatusLabel.value = '';
+}
+
+function openStatusEdit(status: StatusOption): void {
+    if (status.is_system) {
+        return;
+    }
+    editingStatus.value = status;
+    statusForm.label = status.label;
+    statusDialogOpen.value = true;
+}
+
+function saveStatusEdit(): void {
+    if (!editingStatus.value || editingStatus.value.id === null) {
+        return;
+    }
+    statusForm.patch(`/proyecto/kanban/${props.project.id}/estados/${editingStatus.value.id}`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            statusDialogOpen.value = false;
+        },
+    });
+}
+
+function deleteStatus(status: StatusOption): void {
+    if (status.is_system || status.id === null) {
+        return;
+    }
+    router.delete(`/proyecto/kanban/${props.project.id}/estados/${status.id}`, { preserveScroll: true });
+}
+
+function persistStatusOrder(): void {
+    if (draggableCustomStatuses.value.length === 0) {
+        return;
+    }
+    router.patch(`/proyecto/kanban/${props.project.id}/estados/orden`, {
+        statuses: draggableCustomStatuses.value.map((s) => ({ key: s.key, label: s.label })),
+    }, { preserveScroll: true });
+}
 </script>
 
 <template>
@@ -339,6 +439,79 @@ function toggleCollaborator(id: number) {
                         Añadir
                     </Button>
                 </div>
+            </div>
+        </div>
+
+        <div
+            v-if="!portfolioMode"
+            class="mb-4 rounded-lg border border-[#003366]/12 bg-white p-3"
+        >
+            <div class="mb-2 flex items-center justify-between">
+                <p class="text-xs font-semibold uppercase tracking-wide text-[#003366]">
+                    Estados Kanban del proyecto
+                </p>
+                <span class="text-[11px] text-slate-500">
+                    Backlog y Hecha son fijos.
+                </span>
+            </div>
+            <div class="mb-3 flex flex-wrap gap-2">
+                <span
+                    class="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-slate-100 px-2 py-1 text-xs text-slate-700"
+                >
+                    Backlog
+                </span>
+                <VueDraggable
+                    v-model="draggableCustomStatuses"
+                    class="inline-flex flex-wrap gap-2"
+                    :animation="180"
+                    ghost-class="opacity-50"
+                    @end="persistStatusOrder"
+                >
+                    <span
+                        v-for="status in draggableCustomStatuses"
+                        :key="`status-chip-${status.key}`"
+                        class="inline-flex items-center gap-1 rounded-full border border-[#003366]/25 bg-white px-2 py-1 text-xs text-[#003366]"
+                    >
+                        <span class="cursor-grab active:cursor-grabbing">↕</span>
+                        {{ status.label }}
+                        <button
+                            type="button"
+                            class="rounded px-1 text-[10px] hover:bg-[#003366]/10"
+                            @click="openStatusEdit(status)"
+                        >
+                            editar
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded px-1 text-[10px] text-rose-700 hover:bg-rose-100"
+                            @click="deleteStatus(status)"
+                        >
+                            eliminar
+                        </button>
+                    </span>
+                </VueDraggable>
+                <span
+                    class="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-slate-100 px-2 py-1 text-xs text-slate-700"
+                >
+                    Hecha
+                </span>
+            </div>
+            <div class="flex flex-wrap items-end gap-2">
+                <div class="flex min-w-[15rem] flex-1 flex-col gap-1">
+                    <Label :for="`status-nuevo${suf()}`" class="text-xs text-[#003366]">
+                        Nuevo estado
+                    </Label>
+                    <Input
+                        :id="`status-nuevo${suf()}`"
+                        v-model="newStatusLabel"
+                        class="max-w-sm"
+                        placeholder="Ej: bloqueada por cliente"
+                        @keydown.enter.prevent="submitStatusCreate"
+                    />
+                </div>
+                <Button type="button" class="bg-[#003366] hover:bg-[#003366]/90" @click="submitStatusCreate">
+                    Añadir estado
+                </Button>
             </div>
         </div>
 
@@ -388,7 +561,7 @@ function toggleCollaborator(id: number) {
                         <h3
                             class="mb-2 border-b border-[#003366]/10 pb-1 text-xs font-semibold uppercase text-[#003366]"
                         >
-                            {{ columnLabels[st] ?? st }}
+                            {{ columnLabelByKey[st] ?? st }}
                             <span class="font-normal text-slate-500">{{
                                 ((g.columns ?? {})[st] ?? []).length
                             }}</span>
@@ -590,6 +763,27 @@ function toggleCollaborator(id: number) {
                         :disabled="editForm.processing"
                         @click="saveTaskModal"
                     >
+                        Guardar
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog v-model:open="statusDialogOpen">
+            <DialogContent class="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Editar estado Kanban</DialogTitle>
+                    <DialogDescription>
+                        Cambiar nombre de estado en el contexto del proyecto.
+                    </DialogDescription>
+                </DialogHeader>
+                <div class="space-y-1 py-2">
+                    <Label :for="`status-edit${suf()}`">Nombre</Label>
+                    <Input :id="`status-edit${suf()}`" v-model="statusForm.label" />
+                </div>
+                <DialogFooter>
+                    <Button type="button" variant="outline" @click="statusDialogOpen = false">Cancelar</Button>
+                    <Button type="button" class="bg-[#003366] hover:bg-[#003366]/90" @click="saveStatusEdit">
                         Guardar
                     </Button>
                 </DialogFooter>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
 import WorkflowSection from '@/components/workflow/WorkflowSection.vue';
+import { formatDateTimeChile } from '@/lib/dateFormat';
 import { dashboard } from '@/routes';
 import { auditoria } from '@/routes/sistema';
 
@@ -52,7 +53,7 @@ defineOptions({
                 </thead>
                 <tbody class="divide-y font-mono text-[#333]">
                     <tr v-for="l in logs" :key="l.id">
-                        <td class="px-3 py-2 whitespace-nowrap">{{ l.created_at }}</td>
+                        <td class="px-3 py-2 whitespace-nowrap">{{ formatDateTimeChile(l.created_at) }}</td>
                         <td class="px-3 py-2">
                             {{ l.user?.email ?? '—' }}
                         </td>

@@ -14,6 +14,7 @@ use App\Http\Controllers\Workflow\ProyectoKanbanController;
 use App\Http\Controllers\Workflow\ProyectoMinutasController;
 use App\Http\Controllers\Workflow\ProyectoWorkspaceController;
 use App\Http\Controllers\Workflow\SistemaAuditoriaController;
+use App\Http\Controllers\Workflow\SistemaAreasController;
 use App\Http\Controllers\Workflow\SistemaConfiguracionTransversalController;
 use App\Http\Controllers\Workflow\SistemaLrsController;
 use App\Http\Controllers\Workflow\SistemaNotificacionesController;
@@ -42,7 +43,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('carga-equipo', fn () => redirect()->route('pmo.tablero-macro', ['segment' => 'carga']))->name('carga-equipo');
     });
 
-    Route::middleware('role:admin|pmo')->prefix('pmo')->name('pmo.')->group(function () {
+    Route::middleware('role:admin|pmo|coordinador')->prefix('pmo')->name('pmo.')->group(function () {
         Route::post('tablero-macro/visibilidad', [PmoMacroVisibilityController::class, 'update'])->name('tablero-macro.visibilidad');
         Route::get('proyectos', [PmoProyectosController::class, 'index'])->name('proyectos');
         Route::post('proyectos', [PmoProyectosController::class, 'store'])->name('proyectos.store');
@@ -52,6 +53,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::middleware('role:admin|coordinador|pmo')->prefix('coordinacion')->name('coordinacion.')->group(function () {
         Route::get('equipos-carga', CoordinacionEquiposCargaController::class)->name('equipos-carga');
+        Route::patch('equipos-carga/{user}', [CoordinacionEquiposCargaController::class, 'update'])->name('equipos-carga.update');
+        Route::patch('equipos-carga/{user}/suspender-areas', [CoordinacionEquiposCargaController::class, 'suspendAreas'])->name('equipos-carga.suspend-areas');
+        Route::put('equipos-carga/{user}/reasignar-area', [CoordinacionEquiposCargaController::class, 'reassignArea'])->name('equipos-carga.reassign-area');
         Route::get('backlog-tareas', [CoordinacionBacklogController::class, 'index'])->name('backlog-tareas');
         Route::post('backlog-tareas', [CoordinacionBacklogController::class, 'store'])->name('backlog-tareas.store');
         Route::get('validacion-avances', [CoordinacionValidacionController::class, 'index'])->name('validacion-avances');
@@ -65,6 +69,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('calendario', [ProyectoWorkspaceController::class, 'calendario'])->name('calendario');
         Route::get('kanban', [ProyectoKanbanController::class, 'index'])->name('kanban');
         Route::patch('kanban/orden', [ProyectoKanbanController::class, 'syncKanban'])->name('kanban.sync');
+        Route::post('kanban/estados', [ProyectoKanbanController::class, 'storeStatus'])->name('kanban.statuses.store');
+        Route::patch('kanban/{project}/estados/orden', [ProyectoKanbanController::class, 'reorderStatuses'])->name('kanban.statuses.reorder');
+        Route::patch('kanban/{project}/estados/{status}', [ProyectoKanbanController::class, 'updateStatus'])->name('kanban.statuses.update');
+        Route::delete('kanban/{project}/estados/{status}', [ProyectoKanbanController::class, 'destroyStatus'])->name('kanban.statuses.destroy');
         Route::post('task-groups', [ProyectoKanbanController::class, 'storeTaskGroup'])->name('task-groups.store');
         Route::post('tareas', [ProyectoKanbanController::class, 'storeTask'])->name('tareas.store');
         Route::patch('tareas/{task}', [ProyectoKanbanController::class, 'updateTask'])->name('tareas.update');
@@ -83,13 +91,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     Route::prefix('sistema')->name('sistema.')->group(function () {
-        Route::middleware('role:admin|pmo')->group(function () {
+        Route::middleware('role:admin|pmo|coordinador')->group(function () {
             Route::get('auditoria', SistemaAuditoriaController::class)->name('auditoria');
             Route::get('configuracion-transversal', SistemaConfiguracionTransversalController::class)->name('configuracion-transversal');
             Route::patch('configuracion-transversal', [SistemaConfiguracionTransversalController::class, 'update'])->name('configuracion-transversal.update');
+            Route::post('configuracion-transversal/kanban-estados', [SistemaConfiguracionTransversalController::class, 'storeKanbanDefaultStatus'])->name('configuracion-transversal.kanban-statuses.store');
+            Route::patch('configuracion-transversal/kanban-estados/orden', [SistemaConfiguracionTransversalController::class, 'reorderKanbanDefaultStatuses'])->name('configuracion-transversal.kanban-statuses.reorder');
+            Route::patch('configuracion-transversal/kanban-estados/{status}', [SistemaConfiguracionTransversalController::class, 'updateKanbanDefaultStatus'])->name('configuracion-transversal.kanban-statuses.update');
+            Route::delete('configuracion-transversal/kanban-estados/{status}', [SistemaConfiguracionTransversalController::class, 'destroyKanbanDefaultStatus'])->name('configuracion-transversal.kanban-statuses.destroy');
             Route::get('usuarios-roles', SistemaUsuariosRolesController::class)->name('usuarios-roles');
             Route::patch('usuarios-roles/{user}', [SistemaUsuariosRolesController::class, 'update'])->name('usuarios-roles.update');
             Route::get('lrs', SistemaLrsController::class)->name('lrs');
+        });
+        Route::middleware('role:admin|pmo|coordinador')->group(function () {
+            Route::get('areas', SistemaAreasController::class)->name('areas');
+            Route::post('areas', [SistemaAreasController::class, 'store'])->name('areas.store');
+            Route::patch('areas/{area}', [SistemaAreasController::class, 'update'])->name('areas.update');
+            Route::delete('areas/{area}', [SistemaAreasController::class, 'destroy'])->name('areas.destroy');
+            Route::put('areas/{area}/usuarios', [SistemaAreasController::class, 'syncUsers'])->name('areas.usuarios.sync');
         });
         Route::middleware('role:admin|pmo|coordinador|jefe_proyecto|colaborador')->group(function () {
             Route::get('notificaciones', SistemaNotificacionesController::class)->name('notificaciones');

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Workflow;
 use App\Http\Controllers\Controller;
 use App\Models\Project;
 use App\Models\Task;
+use App\Models\TaskGroup;
 use App\Models\User;
 use App\Services\PmoMacroVisibilityService;
 use App\Support\PmoKpiData;
@@ -53,6 +54,7 @@ class PmoTableroMacroController extends Controller
 
         $projects = Project::queryForUser($user)
             ->with('jefeProyecto:id,name')
+            ->with('members:id')
             ->withCount([
                 'tasks as tasks_total',
                 'tasks as tasks_abiertas' => fn ($q) => $q->where('status', '!=', Task::STATUS_HECHA),
@@ -68,11 +70,17 @@ class PmoTableroMacroController extends Controller
             }
         }
 
-        $canEditCarteraFull = $user->hasRole(['admin', 'pmo']);
+        $canEditCarteraFull = $user->hasRole(['admin', 'pmo', 'coordinador']);
 
         $jefeOptions = $canEditCarteraFull
             ? User::query()
                 ->role('jefe_proyecto')
+                ->orderBy('name')
+                ->get(['id', 'name'])
+            : collect();
+        $memberOptions = $canEditCarteraFull
+            ? User::query()
+                ->whereHas('roles', fn ($q) => $q->whereIn('name', ['admin', 'pmo', 'coordinador', 'jefe_proyecto', 'colaborador']))
                 ->orderBy('name')
                 ->get(['id', 'name'])
             : collect();
@@ -114,14 +122,16 @@ class PmoTableroMacroController extends Controller
             'jefe_proyecto' => $p->jefeProyecto !== null
                 ? ['id' => $p->jefeProyecto->id, 'name' => $p->jefeProyecto->name]
                 : null,
+            'member_ids' => $p->members->pluck('id')->map(fn ($id) => (int) $id)->values()->all(),
             'acta_constitucion' => $p->acta_constitucion_path !== null && $p->acta_constitucion_path !== ''
                 ? [
                     'download_url' => route('pmo.proyectos.acta-constitucion', $p),
                     'original_name' => $p->acta_constitucion_original_name,
                 ]
                 : null,
-            'tasks_abiertas' => (int) $p->tasks_abiertas_count,
-            'tasks_total' => (int) $p->tasks_total_count,
+            // withCount usando alias "tasks as tasks_*" expone attributes tasks_* (sin sufijo _count).
+            'tasks_abiertas' => (int) ($p->tasks_abiertas ?? 0),
+            'tasks_total' => (int) ($p->tasks_total ?? 0),
         ];
 
         $selectedProject = $selectedProjectId !== null
@@ -136,7 +146,12 @@ class PmoTableroMacroController extends Controller
         $kanbanPeopleOptions = [];
         $kanbanPortfolioMode = false;
         if ($segment === 'kanban') {
-            $people = ProyectoKanbanPayload::peopleOptions();
+            $selectedProjectModel = $selectedProjectId !== null
+                ? $projects->firstWhere('id', $selectedProjectId)
+                : null;
+            $people = $selectedProjectModel !== null
+                ? ProyectoKanbanPayload::peopleOptionsForProject($selectedProjectModel)
+                : ProyectoKanbanPayload::peopleOptions();
             $kanbanPeopleOptions = $people->map(fn (User $u) => [
                 'id' => $u->id,
                 'name' => $u->name,
@@ -163,8 +178,27 @@ class PmoTableroMacroController extends Controller
 
         $portfolioWorkload = PmoPortfolioWorkloadData::empty();
         $workloadThresholds = WorkflowTransversalSettings::workload();
+        $ganttTaskGroupsByProject = [];
         if ($segment === 'carga') {
             $portfolioWorkload = PmoPortfolioWorkloadData::build($projects, $selectedProjectId);
+        }
+        if ($segment === 'gantt') {
+            $groupRows = TaskGroup::query()
+                ->whereIn('project_id', $projects->pluck('id'))
+                ->orderBy('project_id')
+                ->orderBy('position')
+                ->get(['id', 'project_id', 'name']);
+
+            foreach ($groupRows as $group) {
+                $projectKey = (int) $group->project_id;
+                if (! isset($ganttTaskGroupsByProject[$projectKey])) {
+                    $ganttTaskGroupsByProject[$projectKey] = [];
+                }
+                $ganttTaskGroupsByProject[$projectKey][] = [
+                    'id' => (int) $group->id,
+                    'name' => $group->name,
+                ];
+            }
         }
 
         if ($segment === 'lista') {
@@ -234,6 +268,7 @@ class PmoTableroMacroController extends Controller
             'selectedProject' => $selectedProject,
             'statuses' => Project::STATUSES,
             'jefeOptions' => $jefeOptions,
+            'memberOptions' => $memberOptions,
             'ganttProjects' => $ganttProjects,
             'visibleTabSegments' => $tabs,
             'canEditCarteraFull' => $canEditCarteraFull,
@@ -246,6 +281,7 @@ class PmoTableroMacroController extends Controller
             'kanbanPortfolioMode' => $kanbanPortfolioMode,
             'portfolioWorkload' => $portfolioWorkload,
             'workloadThresholds' => $workloadThresholds,
+            'ganttTaskGroupsByProject' => $ganttTaskGroupsByProject,
             'calendar' => [
                 'view' => $calendarView,
                 'date' => $calendarAnchor->toDateString(),

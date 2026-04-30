@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
 import WorkflowSection from '@/components/workflow/WorkflowSection.vue';
+import { formatDateChile } from '@/lib/dateFormat';
 import { dashboard } from '@/routes';
 
 type Row = {
@@ -9,12 +10,14 @@ type Row = {
     cargo: string | null;
     email: string;
     roles: string[];
+    areas: string[];
     created_at: string | null;
 };
 
 const props = defineProps<{
     users: Row[];
     available_roles: string[];
+    available_areas: string[];
 }>();
 
 const toggleRole = (user: Row, role: string, enabled: boolean) => {
@@ -45,7 +48,7 @@ defineOptions({
     <WorkflowSection
         context-label="Sistema y permisos"
         title="Gestión interna de roles"
-        description="Admin y PMO pueden asignar o actualizar roles de operación por usuario."
+        description="Admin, PMO y Coordinador pueden asignar o actualizar roles de operación por usuario."
     >
         <div class="overflow-x-auto rounded-lg border border-[#003366]/15 bg-white shadow-sm">
             <table class="w-full min-w-[980px] text-left text-sm">
@@ -55,6 +58,7 @@ defineOptions({
                         <th class="px-4 py-3">Cargo</th>
                         <th class="px-4 py-3">Correo</th>
                         <th class="px-4 py-3">Roles</th>
+                        <th class="px-4 py-3">Áreas</th>
                         <th class="px-4 py-3">Alta</th>
                     </tr>
                 </thead>
@@ -80,10 +84,13 @@ defineOptions({
                                 </label>
                             </div>
                         </td>
-                        <td class="px-4 py-3 text-[#6b7280]">{{ u.created_at ?? '—' }}</td>
+                        <td class="px-4 py-3 text-xs text-[#4b5563]">
+                            {{ u.areas.length > 0 ? u.areas.join(', ') : '—' }}
+                        </td>
+                        <td class="px-4 py-3 text-[#6b7280]">{{ formatDateChile(u.created_at) }}</td>
                     </tr>
                     <tr v-if="users.length === 0">
-                        <td colspan="5" class="px-4 py-8 text-center text-[#6b7280]">
+                        <td colspan="6" class="px-4 py-8 text-center text-[#6b7280]">
                             No hay usuarios registrados.
                         </td>
                     </tr>

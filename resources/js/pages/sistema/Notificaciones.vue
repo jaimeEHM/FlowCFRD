@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
 import WorkflowSection from '@/components/workflow/WorkflowSection.vue';
+import { formatDateTimeChile } from '@/lib/dateFormat';
 import { dashboard } from '@/routes';
 import { notificaciones } from '@/routes/sistema';
 
@@ -46,7 +47,7 @@ defineOptions({
                 class="rounded-lg border border-[#003366]/15 bg-white p-3 text-sm shadow-sm"
                 :class="{ 'opacity-60': n.read_at }"
             >
-                <p class="text-xs text-[#666]">{{ n.created_at }}</p>
+                <p class="text-xs text-[#666]">{{ formatDateTimeChile(n.created_at) }}</p>
                 <p
                     v-if="n.data?.kind"
                     class="text-[11px] font-medium uppercase tracking-wide text-[#003366]/80"

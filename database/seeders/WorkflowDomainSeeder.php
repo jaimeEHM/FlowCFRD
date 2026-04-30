@@ -107,6 +107,11 @@ class WorkflowDomainSeeder extends Seeder
                 'jefe_proyecto_id' => $jefeP->id,
                 'created_by_id' => $creator->id,
             ]);
+            $memberIds = collect([$jefeP->id, $creator->id, $pmo->id])
+                ->when($coord !== null, fn ($c) => $c->push($coord->id))
+                ->filter()
+                ->unique()
+                ->values();
 
             if ($primerProyecto === null) {
                 $primerProyecto = $project;
@@ -148,6 +153,7 @@ class WorkflowDomainSeeder extends Seeder
                 if ($assignee === null) {
                     continue;
                 }
+                $memberIds->push($assignee->id);
 
                 $useGroup = $groupGeneral;
 
@@ -171,6 +177,8 @@ class WorkflowDomainSeeder extends Seeder
                     'validation_status' => $isUrgent ? Task::VALIDATION_PENDIENTE : null,
                 ]);
             }
+
+            $project->members()->sync($memberIds->unique()->values()->all());
         }
 
         SkillValidation::query()->create([

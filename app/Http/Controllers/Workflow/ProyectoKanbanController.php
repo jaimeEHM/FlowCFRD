@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Workflow;
 
 use App\Http\Controllers\Controller;
+use App\Models\KanbanStatus;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\TaskGroup;
@@ -34,6 +35,7 @@ class ProyectoKanbanController extends Controller
                 'projects' => $projects,
                 'groups' => [],
                 'statuses' => Task::STATUSES,
+                'statusOptions' => [],
                 'peopleOptions' => [],
                 'focusedTaskId' => null,
             ]);
@@ -48,13 +50,15 @@ class ProyectoKanbanController extends Controller
         }
 
         $groups = ProyectoKanbanPayload::groupsForProject($project);
-        $peopleOptions = ProyectoKanbanPayload::peopleOptions();
+        $peopleOptions = ProyectoKanbanPayload::peopleOptionsForProject($project);
+        $statusOptions = $this->statusOptions($project);
 
         return Inertia::render('proyecto/Kanban', [
             'project' => $project->only(['id', 'name', 'code']),
             'projects' => $projects,
             'groups' => $groups,
-            'statuses' => Task::STATUSES,
+            'statuses' => array_map(fn (array $s) => $s['key'], $statusOptions),
+            'statusOptions' => $statusOptions,
             'peopleOptions' => $peopleOptions,
             'focusedTaskId' => $resolvedFocusTaskId,
         ]);
@@ -128,20 +132,24 @@ class ProyectoKanbanController extends Controller
             'project_id' => 'required|exists:projects,id',
             'orders' => 'required|array|min:1',
             'orders.*.task_id' => 'required|exists:tasks,id',
-            'orders.*.status' => 'required|string|in:'.implode(',', Task::STATUSES),
+            'orders.*.status' => 'required|string',
             'orders.*.task_group_id' => 'required|exists:task_groups,id',
             'orders.*.kanban_order' => 'required|integer|min:0',
         ]);
 
         $project = Project::queryForUser($user)->whereKey($validated['project_id'])->firstOrFail();
+        $allowedStatuses = $this->allowedStatusesForProject($project);
 
         $groupIds = TaskGroup::query()->where('project_id', $project->id)->pluck('id')->all();
 
-        DB::transaction(function () use ($validated, $project, $groupIds): void {
+        DB::transaction(function () use ($validated, $project, $groupIds, $allowedStatuses): void {
             foreach ($validated['orders'] as $row) {
                 $task = Task::query()->whereKey($row['task_id'])->where('project_id', $project->id)->firstOrFail();
                 if (! in_array((int) $row['task_group_id'], array_map('intval', $groupIds), true)) {
                     abort(422, 'Grupo inválido para este proyecto.');
+                }
+                if (! in_array((string) $row['status'], $allowedStatuses, true)) {
+                    abort(422, 'Estado inválido para este proyecto.');
                 }
 
                 $task->fill([
@@ -169,7 +177,7 @@ class ProyectoKanbanController extends Controller
         }
 
         $validated = $request->validate([
-            'status' => 'sometimes|required|string|in:'.implode(',', Task::STATUSES),
+            'status' => 'sometimes|required|string',
             'title' => 'sometimes|string|max:255',
             'description' => 'nullable|string',
             'assignee_id' => 'nullable|exists:users,id',
@@ -183,6 +191,13 @@ class ProyectoKanbanController extends Controller
             $g = TaskGroup::query()->whereKey($validated['task_group_id'])->where('project_id', $task->project_id)->first();
             if ($g === null) {
                 return back()->withErrors(['task_group_id' => 'El segmento no pertenece a este proyecto.']);
+            }
+        }
+
+        if (isset($validated['status'])) {
+            $allowedStatuses = $this->allowedStatusesForProject($task->project);
+            if (! in_array((string) $validated['status'], $allowedStatuses, true)) {
+                return back()->withErrors(['status' => 'El estado no está habilitado para este proyecto.']);
             }
         }
 
@@ -213,5 +228,163 @@ class ProyectoKanbanController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Tarea actualizada.']);
 
         return redirect()->back(302, [], route('proyecto.kanban', ['project_id' => $task->project_id]));
+    }
+
+    public function storeStatus(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        $validated = $request->validate([
+            'project_id' => 'required|exists:projects,id',
+            'label' => 'required|string|max:100',
+        ]);
+
+        $project = Project::queryForUser($user)->whereKey($validated['project_id'])->firstOrFail();
+        $key = KanbanStatus::makeKey($validated['label']);
+        if ($key === '' || in_array($key, [Task::STATUS_BACKLOG, Task::STATUS_HECHA], true)) {
+            return back()->withErrors(['label' => 'Nombre inválido para estado.']);
+        }
+
+        $maxPosition = (int) KanbanStatus::query()->where('project_id', $project->id)->max('position');
+        KanbanStatus::query()->updateOrCreate(
+            ['project_id' => $project->id, 'key' => $key],
+            ['label' => $validated['label'], 'position' => $maxPosition + 1],
+        );
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Estado Kanban agregado.']);
+
+        return redirect()->back(302, [], route('proyecto.kanban', ['project_id' => $project->id]));
+    }
+
+    public function updateStatus(Request $request, Project $project, KanbanStatus $status): RedirectResponse
+    {
+        $user = $request->user();
+        $project = Project::queryForUser($user)->whereKey($project->id)->firstOrFail();
+        abort_unless((int) $status->project_id === (int) $project->id, 404);
+
+        $validated = $request->validate([
+            'label' => 'required|string|max:100',
+        ]);
+        $key = KanbanStatus::makeKey($validated['label']);
+        if ($key === '' || in_array($key, [Task::STATUS_BACKLOG, Task::STATUS_HECHA], true)) {
+            return back()->withErrors(['label' => 'Nombre inválido para estado.']);
+        }
+
+        if ($key !== $status->key) {
+            Task::query()
+                ->where('project_id', $project->id)
+                ->where('status', $status->key)
+                ->update(['status' => $key]);
+        }
+
+        $status->update(['label' => $validated['label'], 'key' => $key]);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Estado Kanban actualizado.']);
+
+        return redirect()->back(302, [], route('proyecto.kanban', ['project_id' => $project->id]));
+    }
+
+    public function destroyStatus(Request $request, Project $project, KanbanStatus $status): RedirectResponse
+    {
+        $user = $request->user();
+        $project = Project::queryForUser($user)->whereKey($project->id)->firstOrFail();
+        abort_unless((int) $status->project_id === (int) $project->id, 404);
+
+        Task::query()
+            ->where('project_id', $project->id)
+            ->where('status', $status->key)
+            ->update(['status' => Task::STATUS_BACKLOG]);
+
+        $status->delete();
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Estado Kanban eliminado (tareas movidas a Backlog).']);
+
+        return redirect()->back(302, [], route('proyecto.kanban', ['project_id' => $project->id]));
+    }
+
+    public function reorderStatuses(Request $request, Project $project): RedirectResponse
+    {
+        $user = $request->user();
+        $project = Project::queryForUser($user)->whereKey($project->id)->firstOrFail();
+
+        $validated = $request->validate([
+            'statuses' => 'required|array|min:1',
+            'statuses.*.key' => 'required|string|max:64',
+            'statuses.*.label' => 'required|string|max:100',
+        ]);
+
+        $incoming = collect($validated['statuses'])
+            ->map(fn (array $row) => [
+                'key' => KanbanStatus::makeKey((string) $row['key']),
+                'label' => trim((string) $row['label']),
+            ])
+            ->filter(fn (array $row) => $row['key'] !== '' && ! in_array($row['key'], [Task::STATUS_BACKLOG, Task::STATUS_HECHA], true))
+            ->unique('key')
+            ->values();
+
+        if ($incoming->isEmpty()) {
+            return back()->withErrors(['statuses' => 'Debes mantener al menos un estado intermedio.']);
+        }
+
+        DB::transaction(function () use ($project, $incoming): void {
+            foreach ($incoming as $index => $row) {
+                KanbanStatus::query()->updateOrCreate(
+                    ['project_id' => $project->id, 'key' => $row['key']],
+                    ['label' => $row['label'], 'position' => $index + 1],
+                );
+            }
+
+            KanbanStatus::query()
+                ->where('project_id', $project->id)
+                ->whereNotIn('key', $incoming->pluck('key')->all())
+                ->delete();
+        });
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Orden de estados Kanban actualizado.']);
+
+        return redirect()->back(302, [], route('proyecto.kanban', ['project_id' => $project->id]));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function allowedStatusesForProject(Project $project): array
+    {
+        return array_map(fn (array $s) => $s['key'], $this->statusOptions($project));
+    }
+
+    /**
+     * @return list<array{id:int|null,key:string,label:string,is_system:bool,is_transversal:bool}>
+     */
+    private function statusOptions(Project $project): array
+    {
+        $effective = KanbanStatus::effectiveForProject($project);
+        if ($effective->isEmpty()) {
+            $custom = collect([
+                ['id' => null, 'key' => Task::STATUS_PENDIENTE, 'label' => 'Pendiente', 'is_system' => false, 'is_transversal' => true],
+                ['id' => null, 'key' => Task::STATUS_EN_CURSO, 'label' => 'En curso', 'is_system' => false, 'is_transversal' => true],
+                ['id' => null, 'key' => Task::STATUS_REVISION, 'label' => 'Revisión', 'is_system' => false, 'is_transversal' => true],
+            ])->all();
+        } else {
+            $custom = $effective
+            ->map(fn (KanbanStatus $s) => [
+                'id' => $s->id,
+                'key' => $s->key,
+                'label' => $s->label,
+                'is_system' => false,
+                'is_transversal' => $s->project_id === null,
+            ])
+            ->values()
+            ->all();
+        }
+
+        return array_merge(
+            [
+                ['id' => null, 'key' => Task::STATUS_BACKLOG, 'label' => 'Backlog', 'is_system' => true, 'is_transversal' => false],
+            ],
+            $custom,
+            [
+                ['id' => null, 'key' => Task::STATUS_HECHA, 'label' => 'Hecha', 'is_system' => true, 'is_transversal' => false],
+            ],
+        );
     }
 }
