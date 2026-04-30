@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
 import type { BreadcrumbItem } from '@/types';
 
 withDefaults(
@@ -11,6 +13,9 @@ withDefaults(
         breadcrumbs: () => [],
     },
 );
+
+const page = usePage();
+const appVersion = computed(() => String(page.props.appVersion ?? '0.0.0'));
 </script>
 
 <template>
@@ -22,6 +27,9 @@ withDefaults(
             <template v-if="breadcrumbs && breadcrumbs.length > 0">
                 <Breadcrumbs :breadcrumbs="breadcrumbs" />
             </template>
+        </div>
+        <div class="ml-auto text-xs text-slate-500">
+            Version {{ appVersion }}
         </div>
     </header>
 </template>

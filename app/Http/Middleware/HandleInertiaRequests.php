@@ -37,9 +37,14 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $composerVersion = '0.0.0';
-        $composerPath = base_path('composer.json');
-        if (is_readable($composerPath)) {
-            $decoded = json_decode((string) file_get_contents($composerPath), true);
+        $packagePath = base_path('package.json');
+        if (is_readable($packagePath)) {
+            $decoded = json_decode((string) file_get_contents($packagePath), true);
+            if (is_array($decoded) && isset($decoded['version']) && is_string($decoded['version'])) {
+                $composerVersion = $decoded['version'];
+            }
+        } elseif (is_readable(base_path('composer.json'))) {
+            $decoded = json_decode((string) file_get_contents(base_path('composer.json')), true);
             if (is_array($decoded) && isset($decoded['version']) && is_string($decoded['version'])) {
                 $composerVersion = $decoded['version'];
             }

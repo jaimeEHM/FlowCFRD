@@ -1,7 +1,7 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
     "name": "cfrd/workflow",
-    "version": "0.3.0",
+    "version": "0.4.5",
     "type": "project",
     "description": "Workflow — backend API, web Inertia y dominio CFRD/UdeC.",
     "keywords": [

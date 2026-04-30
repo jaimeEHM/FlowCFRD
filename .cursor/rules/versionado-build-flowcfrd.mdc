@@ -1,0 +1,12 @@
+---
+description: Versionado semántico automático en cada build
+alwaysApply: true
+---
+
+# Versionado automático FlowCFRD
+
+- Toda ejecución de `npm run build` debe gatillar incremento de versión semántica.
+- El incremento por defecto es `patch`.
+- Si los commits desde el último build incluyen prefijo `feat:`, el incremento debe ser `minor`.
+- La versión debe sincronizarse en `package.json` y `composer.json`.
+- Mostrar la versión activa en el footer del menú lateral de la app.

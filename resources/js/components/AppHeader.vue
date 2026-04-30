@@ -42,6 +42,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const page = usePage();
 const auth = computed(() => page.props.auth);
+const appVersion = computed(() => String(page.props.appVersion ?? '0.0.0'));
 const roleSlugs = computed(
     () => (page.props.auth?.user?.role_slugs as string[] | undefined) ?? [],
 );
@@ -187,7 +188,10 @@ const accesosModulosHref = `${dashboard.url()}#modulos`;
                     </NavigationMenu>
                 </div>
 
-                <div class="ml-auto flex items-center">
+                <div class="ml-auto flex items-center gap-3">
+                    <div class="text-xs text-slate-500">
+                        Version {{ appVersion }}
+                    </div>
                     <DropdownMenu>
                         <DropdownMenuTrigger :as-child="true">
                             <Button

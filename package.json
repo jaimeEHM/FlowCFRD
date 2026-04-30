@@ -1,11 +1,11 @@
 {
     "$schema": "https://www.schemastore.org/package.json",
     "private": true,
-    "version": "0.3.0",
+    "version": "0.4.5",
     "type": "module",
     "scripts": {
-        "build": "vite build",
-        "build:ssr": "vite build && vite build --ssr",
+        "build": "node scripts/auto-version.mjs && vite build",
+        "build:ssr": "npm run build && vite build --ssr",
         "dev": "vite",
         "reverb": "php artisan reverb:start",
         "format": "prettier --write resources/",
